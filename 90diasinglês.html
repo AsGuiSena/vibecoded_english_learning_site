@@ -1,0 +1,2204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plano de Inglês: 90 Dias para a Fluência</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Soft Peach Accents -->
+    <!-- Application Structure Plan: A dashboard-style SPA with a fixed left-hand navigation listing all 90 days for easy access, and a main content area on the right that dynamically displays the selected day's lesson. This structure was chosen for its excellent usability, allowing the user to easily track progress and navigate the curriculum without scrolling through a long document. Key interactions include interactive exercises with instant feedback and a surprise quiz generator that pulls from previous lessons to reinforce learning, which is ideal for a self-directed learner with limited time. A progress chart provides visual motivation. -->
+    <!-- Visualization & Content Choices: 
+    - Progress: Goal=Motivate -> Viz=Donut Chart (Chart.js) showing topic breakdown (Grammar, Health Vocab, etc.). Interaction=Tooltips on hover. Justification=Provides a clear visual overview of learning balance.
+    - Exercises: Goal=Engage/Reinforce -> Presentation=Interactive form elements. Interaction=User input with a 'Check Answers' button providing immediate color-coded feedback. Justification=Active learning is more effective than passive reading, and instant feedback is crucial for self-correction.
+    - Review: Goal=Reinforce -> Presentation=Modal with randomly generated questions. Interaction=Button to trigger the quiz. Justification=Transforms a static prompt into a dynamic spaced-repetition tool, maximizing retention.
+    - Vocabulary: Goal=Inform -> Presentation=Styled 'flashcard' divs. Interaction=Hover/click to reveal translation. Justification=Focuses attention on career-specific terms and encourages active recall.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #fdfaf7;
+            color: #4a4a4a;
+        }
+        .main-container {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+        .nav-link {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .nav-link.active {
+            background-color: #fff4ed;
+            color: #f97316;
+            border-left-color: #f97316;
+            font-weight: 600;
+        }
+        .nav-link:hover {
+            background-color: #fefbf9;
+            color: #fb923c;
+            border-left-color: #fb923c;
+        }
+        .btn-primary {
+            background-color: #f97316;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        .btn-primary:hover {
+            background-color: #ea580c;
+        }
+        .btn-secondary {
+            background-color: #f1f5f9;
+            color: #475569;
+            transition: background-color 0.3s ease;
+        }
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+        .correct-answer {
+            color: #16a34a;
+            font-weight: 600;
+        }
+        .incorrect-answer input, .incorrect-answer select {
+            border-color: #dc2626 !important;
+            background-color: #fef2f2;
+        }
+        .feedback-icon {
+            font-size: 1.2rem;
+            margin-left: 0.5rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 250px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="main-container max-w-7xl mx-auto grid grid-cols-12 h-[90vh]">
+        <aside class="col-span-12 md:col-span-3 lg:col-span-2 bg-gray-50/50 border-r border-gray-200/80 overflow-y-auto">
+            <div class="p-4">
+                <h2 class="text-xl font-bold text-gray-800">Seu Plano</h2>
+                <p class="text-sm text-gray-500">90 Dias de Jornada</p>
+            </div>
+            <nav id="days-nav" class="flex flex-col text-sm"></nav>
+        </aside>
+
+        <main class="col-span-12 md:col-span-9 lg:col-span-10 p-6 lg:p-10 overflow-y-auto">
+            <header class="mb-8">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 id="main-title" class="text-3xl font-bold text-gray-900">Bem-vinda à sua jornada!</h1>
+                        <p id="main-subtitle" class="text-gray-600 mt-1">Selecione um dia na barra lateral para começar a aprender.</p>
+                    </div>
+                    <div id="progress-container" class="w-full sm:w-auto text-right">
+                    </div>
+                </div>
+            </header>
+
+            <div id="content-area">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center bg-orange-50 p-8 rounded-2xl">
+                    <div class="text-center lg:text-left">
+                        <h2 class="text-2xl font-bold text-gray-800">Visualize Seu Progresso</h2>
+                        <p class="mt-2 text-gray-600">Este gráfico mostra a distribuição dos tópicos que você irá aprender. A jornada é dividida para garantir um aprendizado completo, cobrindo gramática, vocabulário essencial e prática de conversação. Mantenha o foco e celebre cada conquista!</p>
+                    </div>
+                    <div>
+                        <div class="chart-container">
+                            <canvas id="progressChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="mt-12 text-center text-gray-500 text-sm">
+                <p><strong>Dica do Dia:</strong> Não tenha medo de cometer erros. Eles são a prova de que você está tentando! </p>
+                <p class="mt-2">&copy; 2025 Plano de Fluência. Todos os direitos reservados.</p>
+            </footer>
+        </main>
+    </div>
+
+    <div id="quiz-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div class="p-6 border-b">
+                <h3 class="text-2xl font-bold text-gray-900">Quiz Surpresa!</h3>
+                <p class="text-gray-600">Vamos revisar o que você aprendeu até agora.</p>
+            </div>
+            <div id="quiz-content" class="p-6 overflow-y-auto"></div>
+            <div class="p-6 border-t bg-gray-50 rounded-b-2xl flex justify-end gap-4">
+                <button id="close-quiz-btn" class="px-6 py-2 rounded-lg btn-secondary">Fechar</button>
+                <button id="check-quiz-btn" class="px-6 py-2 rounded-lg btn-primary">Verificar Quiz</button>
+            </div>
+        </div>
+    </div>
+
+
+<script>
+const dailyContent = [
+    {
+        day: 1,
+        title: "O Alfabeto e Saudações",
+        category: "Fundamentos",
+        summary: "Hoje vamos aprender o alfabeto em inglês e as saudações básicas. Dominar os sons de cada letra é o primeiro passo para uma boa pronúncia.",
+        exercises: [
+            { type: "fill", question: "Qual a letra que soa como 'ei'?", answer: "A" },
+            { type: "fill", question: "Como se soletra a palavra 'CAT'?", answer: "C-A-T" },
+            { type: "choice", question: "Qual a saudação para a noite?", options: ["Good morning", "Good afternoon", "Good night"], answer: "Good night" },
+            { type: "fill", question: "Como você responde a 'Nice to meet you'?", answer: "Nice to meet you, too" },
+            { type: "fill", question: "A palavra 'HELLO' significa...?", answer: "Olá" }
+        ],
+        vocabulary: [
+            { en: "Hello", pt: "Olá", example: "Hello, nice to meet you." },
+            { en: "Goodbye", pt: "Adeus", example: "Goodbye, see you tomorrow." },
+            { en: "Please", pt: "Por favor", example: "Can you help me, please?" },
+            { en: "Thank you", pt: "Obrigado(a)", example: "Thank you for your help." },
+            { en: "Sorry", pt: "Desculpa", example: "I am sorry, I am late." }
+        ]
+    },
+    {
+        day: 2,
+        title: "Verbo 'To Be' e Números",
+        category: "Gramática",
+        summary: "O verbo 'To Be' (ser/estar) é um dos mais importantes em inglês. Vamos praticar sua forma no presente (am, is, are) junto com os números de 1 a 20.",
+        exercises: [
+            { type: "fill", question: "Complete: 'She ___ a student.'", answer: "is" },
+            { type: "fill", question: "Complete: 'I ___ happy.'", answer: "am" },
+            { type: "fill", question: "Complete: 'They ___ friends.'", answer: "are" },
+            { type: "fill", question: "Como se escreve o número '10' em inglês?", answer: "ten" },
+            { type: "choice", question: "Qual frase está correta?", options: ["We is a team", "He are a doctor", "You are a teacher"], answer: "You are a teacher" }
+        ],
+        vocabulary: [
+            { en: "Nurse", pt: "Enfermeira(o)", example: "She is a nurse at the hospital." },
+            { en: "Recipe", pt: "Receita (culinária)", example: "This is a recipe for a delicious cake." },
+            { en: "Patient", pt: "Paciente", example: "The patient is feeling better." },
+            { en: "Client", pt: "Cliente", example: "I have a new client for a facial." },
+            { en: "Doctor", pt: "Médico(a)", example: "The doctor is very kind." }
+        ]
+    },
+    {
+        day: 3,
+        title: "Pronomes Pessoais e Adjetivos Simples",
+        category: "Gramática",
+        summary: "Aprenda a usar pronomes pessoais como 'I', 'you', 'he' e 'she' e combine-os com adjetivos simples como 'tall' e 'happy'.",
+        exercises: [
+            { type: "fill", question: "O pronome para 'nós' em inglês é...?", answer: "we" },
+            { type: "fill", question: "Complete: 'He is very ______.' (alto)", answer: "tall" },
+            { type: "choice", question: "Qual a tradução para 'they are nice'?", options: ["Nós somos legais", "Eles são legais", "Ela é legal"], answer: "Eles são legais" },
+            { type: "fill", question: "Complete: '____ is a beautiful woman.'", answer: "She" },
+            { type: "fill", question: "O adjetivo para 'bonito' em inglês é...?", answer: "beautiful" }
+        ],
+        vocabulary: [
+            { en: "Tall", pt: "Alto(a)", example: "He is a tall man." },
+            { en: "Short", pt: "Baixo(a)", example: "She is a short woman." },
+            { en: "Happy", pt: "Feliz", example: "They are very happy." },
+            { en: "Sad", pt: "Triste", example: "He is sad today." },
+            { en: "Beautiful", pt: "Bonito(a)", example: "She has beautiful hair." }
+        ]
+    },
+    {
+        day: 4,
+        title: "Cores e Partes do Corpo",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Hoje, vamos memorizar os nomes das cores e das partes do corpo humano, essencial para descrições e para a área da saúde.",
+        exercises: [
+            { type: "fill", question: "Qual a cor do sol?", answer: "yellow" },
+            { type: "fill", question: "Os 'olhos' em inglês são...?", answer: "eyes" },
+            { type: "choice", question: "A palavra 'hair' significa...?", options: ["Cabelo", "Perna", "Braço"], answer: "Cabelo" },
+            { type: "fill", question: "Complete a frase: 'Her shirt is ______.' (verde)", answer: "green" },
+            { type: "fill", question: "A parte do corpo que conecta o braço ao corpo é o...?", answer: "shoulder" }
+        ],
+        vocabulary: [
+            { en: "Red", pt: "Vermelho", example: "The lipstick is red." },
+            { en: "Blue", pt: "Azul", example: "Her eyes are blue." },
+            { en: "Hair", pt: "Cabelo", example: "I need to wash my hair." },
+            { en: "Face", pt: "Rosto", example: "She applied a mask to her face." },
+            { en: "Skin", pt: "Pele", example: "The skin is our largest organ." }
+        ]
+    },
+    {
+        day: 5,
+        title: "Artigos Indefinidos: A/An",
+        category: "Gramática",
+        summary: "Aprenda a usar os artigos 'a' e 'an' antes de substantivos. Use 'an' antes de vogais e 'a' antes de consoantes.",
+        exercises: [
+            { type: "fill", question: "Complete com 'a' ou 'an': 'I need ___ apple.'", answer: "an" },
+            { type: "fill", question: "Complete com 'a' ou 'an': 'She is ___ doctor.'", answer: "a" },
+            { type: "choice", question: "Qual a frase correta?", options: ["She is an nurse", "He is a engineer", "He is an engineer"], answer: "He is an engineer" },
+            { type: "fill", question: "Complete: 'I saw ___ orange cat.'", answer: "an" },
+            { type: "fill", question: "Complete: 'This is ___ beautiful flower.'", answer: "a" }
+        ],
+        vocabulary: [
+            { en: "Orange", pt: "Laranja", example: "I eat an orange for breakfast." },
+            { en: "Apple", pt: "Maçã", example: "An apple a day keeps the doctor away." },
+            { en: "Engineer", pt: "Engenheiro(a)", example: "He is an engineer." },
+            { en: "Student", pt: "Estudante", example: "I am a student." },
+            { en: "University", pt: "Universidade", example: "She studies at a university." }
+        ]
+    },
+    {
+        day: 6,
+        title: "Verbos de Ação no Presente Simples",
+        category: "Gramática",
+        summary: "Vamos aprender a usar verbos de ação como 'eat', 'drink' e 'sleep' no presente simples. Lembre-se de adicionar 's' para a terceira pessoa do singular.",
+        exercises: [
+            { type: "fill", question: "Complete: 'She _______ (eat) a salad every day.'", answer: "eats" },
+            { type: "fill", question: "Complete: 'I _______ (drink) water.'", answer: "drink" },
+            { type: "choice", question: "Qual a tradução para 'He works at a clinic'?", options: ["Ele trabalha em um banco", "Ela trabalha em uma clínica", "Ele trabalha em uma clínica"], answer: "Ele trabalha em uma clínica" },
+            { type: "fill", question: "Complete: 'They _______ (study) for the test.'", answer: "study" },
+            { type: "fill", question: "Complete: 'He ______ (cook) a delicious meal.'", answer: "cooks" }
+        ],
+        vocabulary: [
+            { en: "Eat", pt: "Comer", example: "I eat a healthy meal." },
+            { en: "Drink", pt: "Beber", example: "Drink plenty of water." },
+            { en: "Cook", pt: "Cozinhar", example: "She loves to cook." },
+            { en: "Work", pt: "Trabalhar", example: "I work at a hospital." },
+            { en: "Sleep", pt: "Dormir", example: "He sleeps eight hours a night." }
+        ]
+    },
+    {
+        day: 7,
+        title: "Comidas e Utensílios de Cozinha",
+        category: "Vocabulário (Culinária)",
+        summary: "Hoje, vamos aprender os nomes de comidas comuns e de utensílios de cozinha, como 'fork', 'spoon' e 'plate'.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'colher' em inglês?", answer: "spoon" },
+            { type: "fill", question: "Qual o nome da 'faca' em inglês?", answer: "knife" },
+            { type: "choice", question: "A palavra 'plate' significa...?", options: ["Prato", "Copo", "Panela"], answer: "Prato" },
+            { type: "fill", question: "Se você quer cozinhar, você precisa de uma...?", answer: "pan" },
+            { type: "fill", question: "A comida 'sopa' em inglês é...?", answer: "soup" }
+        ],
+        vocabulary: [
+            { en: "Fork", pt: "Garfo", example: "I need a fork to eat." },
+            { en: "Spoon", pt: "Colher", example: "Please pass the spoon." },
+            { en: "Plate", pt: "Prato", example: "Put the food on the plate." },
+            { en: "Pan", pt: "Panela", example: "The soup is in the pan." },
+            { en: "Cup", pt: "Copo", example: "I want a cup of tea." }
+        ]
+    },
+    {
+        day: 8,
+        title: "Question Words: Who, What, Where",
+        category: "Gramática",
+        summary: "Aprenda a fazer perguntas usando 'Who' (quem), 'What' (o que/qual) e 'Where' (onde).",
+        exercises: [
+            { type: "fill", question: "____ is your name?", answer: "What" },
+            { type: "fill", question: "____ is the hospital?", answer: "Where" },
+            { type: "choice", question: "Qual a tradução para 'Who is he?'", options: ["Onde ele está?", "Quem ele é?", "O que ele é?"], answer: "Quem ele é?" },
+            { type: "fill", question: "____ are you from?", answer: "Where" },
+            { type: "fill", question: "____ is your favorite color?", answer: "What" }
+        ],
+        vocabulary: [
+            { en: "Who", pt: "Quem", example: "Who is at the door?" },
+            { en: "What", pt: "O que / Qual", example: "What is your profession?" },
+            { en: "Where", pt: "Onde", example: "Where is the pharmacy?" },
+            { en: "How", pt: "Como", example: "How are you?" },
+            { en: "Why", pt: "Por que", example: "Why are you here?" }
+        ]
+    },
+    {
+        day: 9,
+        title: "Frases Simples para Saúde e Estética",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Vamos combinar o vocabulário de saúde e estética com a gramática que você já aprendeu para formar frases úteis.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'Eu sou uma esteticista'?", answer: "I am an esthetician" },
+            { type: "fill", question: "A tradução de 'He is a patient' é...?", answer: "Ele é um paciente" },
+            { type: "choice", question: "Qual a frase correta para 'Ela tem um novo cliente'?", options: ["She have a new client", "She has a new client", "She is a new client"], answer: "She has a new client" },
+            { type: "fill", question: "Complete: 'My ______ is red.' (batom)", answer: "lipstick" },
+            { type: "fill", question: "Como se diz 'Estou com dor de cabeça'?", answer: "I have a headache" }
+        ],
+        vocabulary: [
+            { en: "Lipstick", pt: "Batom", example: "I am wearing red lipstick." },
+            { en: "Nails", pt: "Unhas", example: "I need to do my nails." },
+            { en: "Cream", pt: "Creme", example: "This face cream is very good." },
+            { en: "Clinic", pt: "Clínica", example: "I work at a beauty clinic." },
+            { en: "Headache", pt: "Dor de cabeça", example: "He has a bad headache." }
+        ]
+    },
+    {
+        day: 10,
+        title: "Horas e Dias da Semana",
+        category: "Fundamentos",
+        summary: "Aprenda a dizer as horas e os nomes dos dias da semana, fundamental para marcar consultas ou agendamentos.",
+        exercises: [
+            { type: "fill", question: "O que significa 'It's 3 PM'?", answer: "São 3 da tarde" },
+            { type: "fill", question: "Como se diz 'segunda-feira' em inglês?", answer: "Monday" },
+            { type: "choice", question: "Qual o dia depois de Wednesday?", options: ["Tuesday", "Thursday", "Friday"], answer: "Thursday" },
+            { type: "fill", question: "Como se diz 'são 8 horas da manhã'?", answer: "It's 8 AM" },
+            { type: "fill", question: "O que é 'weekend'?", answer: "Fim de semana" }
+        ],
+        vocabulary: [
+            { en: "Monday", pt: "Segunda-feira", example: "My appointment is on Monday." },
+            { en: "Tuesday", pt: "Terça-feira", example: "The class is on Tuesday." },
+            { en: "Wednesday", pt: "Quarta-feira", example: "I have a meeting on Wednesday." },
+            { en: "Thursday", pt: "Quinta-feira", example: "We go out on Thursday." },
+            { en: "Friday", pt: "Sexta-feira", example: "I love Friday." }
+        ]
+    },
+    {
+        day: 11,
+        title: "Present Continuous para o Futuro Próximo",
+        category: "Gramática",
+        summary: "O Present Continuous também pode ser usado para falar de planos futuros. Vamos explorar essa função para agendamentos.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I am seeing the doctor ________.' (amanhã)", answer: "tomorrow" },
+            { type: "fill", question: "Complete: 'She is having a massage at 2 PM.' O que ela fará às 2 da tarde?", answer: "massagem" },
+            { type: "choice", question: "Qual frase expressa um plano futuro?", options: ["I cook now", "I am cooking tomorrow", "I am a cook"], answer: "I am cooking tomorrow" },
+            { type: "fill", question: "Complete: 'They are _______ at the clinic.' (encontrar)", answer: "meeting" },
+            { type: "fill", question: "A tradução de 'I am getting a haircut on Saturday' é...?", answer: "Eu vou cortar o cabelo no sábado" }
+        ],
+        vocabulary: [
+            { en: "Appointment", pt: "Hora marcada / Consulta", example: "I am having an appointment with the dentist." },
+            { en: "Schedule", pt: "Agendar / Horário", example: "She is scheduling a new client." },
+            { en: "Visit", pt: "Visitar", example: "We are visiting the beauty salon tomorrow." },
+            { en: "Meeting", pt: "Reunião / Encontro", example: "I am meeting with a client at the office." },
+            { en: "Future", pt: "Futuro", example: "We are talking about our future plans." }
+        ]
+    },
+    {
+        day: 12,
+        title: "Ingredientes e Medidas Culinárias",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever ingredientes e medidas em inglês, como 'cup', 'tablespoon' e 'teaspoon'.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'xícara' em inglês?", answer: "cup" },
+            { type: "fill", question: "O que é 'tablespoon'?", answer: "colher de sopa" },
+            { type: "choice", question: "A palavra 'sugar' significa...?", options: ["Sal", "Açúcar", "Pimenta"], answer: "Açúcar" },
+            { type: "fill", question: "Para fazer um bolo, você precisa de 'flour' (farinha) e...?", answer: "sugar" },
+            { type: "fill", question: "O que é 'teaspoon'?", answer: "colher de chá" }
+        ],
+        vocabulary: [
+            { en: "Cup", pt: "Xícara", example: "Add one cup of flour." },
+            { en: "Tablespoon", pt: "Colher de sopa", example: "Use a tablespoon of oil." },
+            { en: "Teaspoon", pt: "Colher de chá", example: "Add a teaspoon of salt." },
+            { en: "Flour", pt: "Farinha", example: "Flour is the main ingredient." },
+            { en: "Sugar", pt: "Açúcar", example: "The recipe needs more sugar." }
+        ]
+    },
+    {
+        day: 13,
+        title: "Rotina Diária e Hábitos",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Vamos descrever rotinas diárias e hábitos relacionados à saúde e beleza, usando verbos como 'get up' e 'brush'.",
+        exercises: [
+            { type: "fill", question: "Para escovar os dentes, você usa uma...?", answer: "toothbrush" },
+            { type: "fill", question: "Como se diz 'Eu me levanto às 7 da manhã'?", answer: "I get up at 7 AM" },
+            { type: "choice", question: "Qual a tradução para 'wash my face'?", options: ["Lavar o rosto", "Lavar o cabelo", "Lavar as mãos"], answer: "Lavar o rosto" },
+            { type: "fill", question: "Complete: 'She _______ her hair every day.' (penteia)", answer: "brushes" },
+            { type: "fill", question: "Como se diz 'tomar banho'?", answer: "take a shower" }
+        ],
+        vocabulary: [
+            { en: "Brush", pt: "Escovar", example: "Brush your teeth three times a day." },
+            { en: "Wash", pt: "Lavar", example: "Wash your hands before eating." },
+            { en: "Skincare", pt: "Cuidado com a pele", example: "Skincare is important for a healthy face." },
+            { en: "Exercise", pt: "Exercício", example: "I exercise in the morning." },
+            { en: "Habits", pt: "Hábitos", example: "Healthy habits are important." }
+        ]
+    },
+    {
+        day: 14,
+        title: "Adjetivos para Descrever Pessoas",
+        category: "Gramática",
+        summary: "Continue aprimorando seu uso de adjetivos para descrever a aparência e personalidade de pessoas, algo útil para a interação com clientes.",
+        exercises: [
+            { type: "fill", question: "Se alguém é 'friendly', ela é...?", answer: "amigável" },
+            { type: "fill", question: "Complete: 'He is very ______.' (gentil)", answer: "kind" },
+            { type: "choice", question: "A palavra 'strong' significa...?", options: ["Fraco", "Forte", "Alto"], answer: "Forte" },
+            { type: "fill", question: "A tradução de 'smart' é...?", answer: "inteligente" },
+            { type: "fill", question: "Como se diz 'Ele é um homem atraente'?", answer: "He is an attractive man" }
+        ],
+        vocabulary: [
+            { en: "Friendly", pt: "Amigável", example: "She is a friendly person." },
+            { en: "Kind", pt: "Gentil", example: "He is a very kind doctor." },
+            { en: "Strong", pt: "Forte", example: "He has strong hands." },
+            { en: "Smart", pt: "Inteligente", example: "She is a smart student." },
+            { en: "Attractive", pt: "Atraente", example: "He is an attractive man." }
+        ]
+    },
+    {
+        day: 15,
+        title: "Expressões de Cortesia e Pedidos",
+        category: "Fundamentos",
+        summary: "Aprenda a fazer pedidos de forma educada e a responder a eles. Frases como 'May I...' e 'Could you...' são essenciais.",
+        exercises: [
+            { type: "fill", question: "Complete o pedido educado: '_______ I have a glass of water?'", answer: "May" },
+            { type: "fill", question: "Como se diz 'Você poderia me ajudar?'", answer: "Could you help me" },
+            { type: "choice", question: "A resposta 'You're welcome' significa...?", options: ["De nada", "Por favor", "Com licença"], answer: "De nada" },
+            { type: "fill", question: "Complete o pedido: 'Please, ______ me the towel.' (passe)", answer: "pass" },
+            { type: "fill", question: "A palavra 'excuse me' significa...?", answer: "com licença" }
+        ],
+        vocabulary: [
+            { en: "May I", pt: "Eu posso", example: "May I use the restroom?" },
+            { en: "Could you", pt: "Você poderia", example: "Could you tell me the price?" },
+            { en: "You're welcome", pt: "De nada", example: "Thank you! You're welcome." },
+            { en: "Excuse me", pt: "Com licença", example: "Excuse me, where is the exit?" },
+            { en: "Sorry", pt: "Sinto muito", example: "Sorry, I made a mistake." }
+        ]
+    },
+    {
+        day: 16,
+        title: "Verbos Irregulares Comuns (1)",
+        category: "Gramática",
+        summary: "Os verbos irregulares não seguem a regra padrão do passado. Hoje, vamos memorizar os primeiros 5 verbos irregulares mais comuns.",
+        exercises: [
+            { type: "fill", question: "O passado de 'eat' é '...?'", answer: "ate" },
+            { type: "fill", question: "O passado de 'drink' é '...?'", answer: "drank" },
+            { type: "choice", question: "Qual o passado de 'go'?", options: ["goed", "went", "gone"], answer: "went" },
+            { type: "fill", question: "O passado de 'see' é '...?'", answer: "saw" },
+            { type: "fill", question: "O passado de 'come' é '...?'", answer: "came" }
+        ],
+        vocabulary: [
+            { en: "Go - went - gone", pt: "Ir", example: "I went to the clinic yesterday." },
+            { en: "See - saw - seen", pt: "Ver", example: "She saw a doctor last week." },
+            { en: "Come - came - come", pt: "Vir", example: "He came to the party late." },
+            { en: "Eat - ate - eaten", pt: "Comer", example: "I ate a burger for lunch." },
+            { en: "Drink - drank - drunk", pt: "Beber", example: "She drank some water." }
+        ]
+    },
+    {
+        day: 17,
+        title: "Ingredientes de Produtos de Beleza",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda a ler a lista de ingredientes em produtos de beleza. Focaremos em termos básicos como 'water', 'oil' e 'aloe vera'.",
+        exercises: [
+            { type: "fill", question: "A tradução de 'oil' é...?", answer: "óleo" },
+            { type: "fill", question: "O que é 'water' em português?", answer: "água" },
+            { type: "choice", question: "A palavra 'fragrance' significa...?", options: ["Fruta", "Fragrância", "Flocos"], answer: "Fragrância" },
+            { type: "fill", question: "A planta 'aloe vera' é conhecida por ser...?", answer: "calmante" },
+            { type: "fill", question: "Como se diz 'ingredientes' em inglês?", answer: "ingredients" }
+        ],
+        vocabulary: [
+            { en: "Water", pt: "Água", example: "This cream is based on water." },
+            { en: "Oil", pt: "Óleo", example: "I use almond oil on my hair." },
+            { en: "Fragrance", pt: "Fragrância", example: "This lotion has a nice fragrance." },
+            { en: "Aloe vera", pt: "Babosa", example: "Aloe vera is great for the skin." },
+            { en: "Glycerin", pt: "Glicerina", example: "Glycerin is a common ingredient in moisturizers." }
+        ]
+    },
+    {
+        day: 18,
+        title: "Expressões de Quantidade",
+        category: "Gramática",
+        summary: "Aprenda a usar 'some', 'any', 'much' e 'many' para falar de quantidades, o que é útil em receitas e relatórios de estoque.",
+        exercises: [
+            { type: "fill", question: "Use 'much' ou 'many': 'I don't have ___ money.'", answer: "much" },
+            { type: "fill", question: "Use 'some' ou 'any': 'Do you have ___ salt?'", answer: "any" },
+            { type: "choice", question: "Qual frase está correta?", options: ["I have many milk", "I have some milk", "I have any milk"], answer: "I have some milk" },
+            { type: "fill", question: "Complete: 'There are ______ apples in the basket.' (muitas)", answer: "many" },
+            { type: "fill", question: "Use 'some' ou 'any': 'I need ___ help.'", answer: "some" }
+        ],
+        vocabulary: [
+            { en: "Some", pt: "Alguns / Algum", example: "I have some bread." },
+            { en: "Any", pt: "Nenhum / Algum (em perguntas)", example: "Do you have any questions?" },
+            { en: "Much", pt: "Muito (para incontáveis)", example: "I don't have much time." },
+            { en: "Many", pt: "Muitos (para contáveis)", example: "There are many people here." },
+            { en: "A lot of", pt: "Muito / Muitos", example: "I have a lot of work to do." }
+        ]
+    },
+    {
+        day: 19,
+        title: "Ingredientes Culinários e Temperos",
+        category: "Vocabulário (Culinária)",
+        summary: "Hoje, o foco é em temperos e outros ingredientes importantes para a culinária, como 'salt', 'pepper' e 'garlic'.",
+        exercises: [
+            { type: "fill", question: "O que é 'salt'?", answer: "sal" },
+            { type: "fill", question: "A palavra 'pepper' significa...?", answer: "pimenta" },
+            { type: "choice", question: "Qual a tradução para 'onion'?", options: ["Batata", "Cebola", "Tomate"], answer: "Cebola" },
+            { type: "fill", question: "Para dar sabor, você pode adicionar 'garlic' (alho) e...?", answer: "onion" },
+            { type: "fill", question: "A tradução de 'spices' é...?", answer: "especiarias" }
+        ],
+        vocabulary: [
+            { en: "Salt", pt: "Sal", example: "Add a pinch of salt." },
+            { en: "Pepper", pt: "Pimenta", example: "I love black pepper." },
+            { en: "Garlic", pt: "Alho", example: "This recipe needs garlic." },
+            { en: "Onion", pt: "Cebola", example: "Chop the onion." },
+            { en: "Spices", pt: "Especiarias", example: "She uses many spices in her cooking." }
+        ]
+    },
+    {
+        day: 20,
+        title: "Conversa no Supermercado",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo simulado de compras no supermercado, pedindo ajuda e encontrando produtos.",
+        exercises: [
+            { type: "fill", question: "Cliente: 'Excuse me, where can I find the ______?' (vegetais)", answer: "vegetables" },
+            { type: "fill", question: "Vendedor: 'It's on aisle three.' O que é 'aisle'?", answer: "corredor" },
+            { type: "choice", question: "Qual a pergunta para 'Quanto custa isso?'?", options: ["How much is this?", "How many is this?", "What this cost?"], answer: "How much is this?" },
+            { type: "fill", question: "Cliente: 'Can I have two ______ of milk?' (caixas)", answer: "cartons" },
+            { type: "fill", question: "Vendedor: 'Is that all?' Cliente: 'Yes, that's it. Thank ______.'", answer: "you" }
+        ],
+        vocabulary: [
+            { en: "Vegetables", pt: "Vegetais", example: "I buy fresh vegetables every week." },
+            { en: "Aisle", pt: "Corredor", example: "The pasta is in aisle five." },
+            { en: "How much", pt: "Quanto (preço)", example: "How much is the bread?" },
+            { en: "Carton", pt: "Caixa (de leite, suco)", example: "I bought a carton of orange juice." },
+            { en: "Shopping list", pt: "Lista de compras", example: "I have my shopping list." }
+        ]
+    },
+    {
+        day: 21,
+        title: "Saúde Geral e Bem-Estar",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Hoje, o foco é em vocabulário geral de saúde, incluindo termos para doenças, remédios e exercícios.",
+        exercises: [
+            { type: "fill", question: "A tradução de 'headache' é...?", answer: "dor de cabeça" },
+            { type: "fill", question: "Se você tem uma 'cold', você tem um...?", answer: "resfriado" },
+            { type: "choice", question: "Qual a palavra para 'remédio'?", options: ["Medicine", "Food", "Water"], answer: "Medicine" },
+            { type: "fill", question: "O que é 'fever'?", answer: "febre" },
+            { type: "fill", question: "Como se diz 'Eu me sinto doente'?", answer: "I feel sick" }
+        ],
+        vocabulary: [
+            { en: "Headache", pt: "Dor de cabeça", example: "I have a terrible headache." },
+            { en: "Cold", pt: "Resfriado", example: "She has a cold and a cough." },
+            { en: "Medicine", pt: "Remédio", example: "Take this medicine twice a day." },
+            { en: "Fever", pt: "Febre", example: "He has a high fever." },
+            { en: "Sick", pt: "Doente", example: "I am feeling sick today." }
+        ]
+    },
+    {
+        day: 22,
+        title: "Verbos de Habilidade: Can/Can't",
+        category: "Gramática",
+        summary: "Aprenda a usar 'can' para expressar habilidade e 'can't' para expressar incapacidade.",
+        exercises: [
+            { type: "fill", question: "Complete: 'She ____ speak English.' (consegue)", answer: "can" },
+            { type: "fill", question: "Complete: 'I ____ cook well.' (não consigo)", answer: "can't" },
+            { type: "choice", question: "Qual a tradução para 'Can you help me?'", options: ["Onde você pode ir?", "Você pode me ajudar?", "O que você pode fazer?"], answer: "Você pode me ajudar?" },
+            { type: "fill", question: "Complete: 'He _____ run very fast.' (consegue)", answer: "can" },
+            { type: "fill", question: "Como se diz 'Ela não consegue nadar'?", answer: "She can't swim" }
+        ],
+        vocabulary: [
+            { en: "Can", pt: "Poder / Conseguir", example: "I can help you." },
+            { en: "Can't", pt: "Não poder / Não conseguir", example: "He can't come today." },
+            { en: "Help", pt: "Ajuda / Ajudar", example: "Can I help you with that?" },
+            { en: "Speak", pt: "Falar", example: "She can speak three languages." },
+            { en: "Run", pt: "Correr", example: "I can run very fast." }
+        ]
+    },
+    {
+        day: 23,
+        title: "Rotina de Skincare",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Hoje, o foco é em vocabulário e frases para descrever uma rotina de cuidados com a pele completa.",
+        exercises: [
+            { type: "fill", question: "O primeiro passo é usar um '______'. (limpador)", answer: "cleanser" },
+            { type: "fill", question: "Para hidratar, você usa um '______'. (hidratante)", answer: "moisturizer" },
+            { type: "choice", question: "Qual a tradução para 'sunscreen'?", options: ["Creme facial", "Protetor solar", "Esfoliante"], answer: "Protetor solar" },
+            { type: "fill", question: "O que é 'serum'?", answer: "sérum" },
+            { type: "fill", question: "Como se diz 'rotina de cuidados com a pele'?", answer: "skincare routine" }
+        ],
+        vocabulary: [
+            { en: "Cleanser", pt: "Limpador", example: "I use a foam cleanser." },
+            { en: "Toner", pt: "Tônico", example: "Apply the toner after cleansing." },
+            { en: "Moisturizer", pt: "Hidratante", example: "This moisturizer is for dry skin." },
+            { en: "Sunscreen", pt: "Protetor solar", example: "Sunscreen is very important." },
+            { en: "Serum", pt: "Sérum", example: "She applies a vitamin C serum." }
+        ]
+    },
+    {
+        day: 24,
+        title: "Frases para Culinária",
+        category: "Conversação",
+        summary: "Vamos aprender a dar instruções simples e a perguntar sobre a preparação de alimentos.",
+        exercises: [
+            { type: "fill", question: "Como você diz 'Misture os ingredientes'?", answer: "Mix the ingredients" },
+            { type: "fill", question: "Complete: 'Add a little bit of _______.' (sal)", answer: "salt" },
+            { type: "choice", question: "Qual a pergunta para 'O que tem para o jantar?'", options: ["What is for lunch?", "What is for dinner?", "What is for breakfast?"], answer: "What is for dinner?" },
+            { type: "fill", question: "Complete: 'Is the soup ________?' (quente)", answer: "hot" },
+            { type: "fill", question: "Como se diz 'Isso está delicioso'?", answer: "This is delicious" }
+        ],
+        vocabulary: [
+            { en: "Mix", pt: "Misturar", example: "Mix the flour and sugar." },
+            { en: "Add", pt: "Adicionar", example: "Add some water to the sauce." },
+            { en: "Taste", pt: "Provar / Sabor", example: "Taste the soup." },
+            { en: "Delicious", pt: "Delicioso", example: "The cake is delicious." },
+            { en: "Hot", pt: "Quente", example: "The coffee is hot." }
+        ]
+    },
+    {
+        day: 25,
+        title: "Present Perfect (1)",
+        category: "Gramática",
+        summary: "Vamos introduzir o Present Perfect (have/has + verbo no passado) para falar de experiências de vida, como 'I have worked here'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I have ______ in this clinic for a year.' (trabalhado)", answer: "worked" },
+            { type: "fill", question: "Complete: 'She has ______ to Italy.' (ido)", answer: "been" },
+            { type: "choice", question: "Qual frase está correta?", options: ["I have went to the gym", "I have gone to the gym", "I has gone to the gym"], answer: "I have gone to the gym" },
+            { type: "fill", question: "Complete: 'We have never ______ a Brazilian meal.' (cozinhado)", answer: "cooked" },
+            { type: "fill", question: "Como se diz 'Ele nunca viu um fantasma'?", answer: "He has never seen a ghost" }
+        ],
+        vocabulary: [
+            { en: "Have worked", pt: "Ter trabalhado", example: "I have worked at the salon for five years." },
+            { en: "Have been", pt: "Ter estado / Ter ido", example: "She has been to Paris." },
+            { en: "Have seen", pt: "Ter visto", example: "They have seen this movie." },
+            { en: "Have cooked", pt: "Ter cozinhado", example: "We have cooked together before." },
+            { en: "Never", pt: "Nunca", example: "I have never tried sushi." }
+        ]
+    },
+    {
+        day: 26,
+        title: "Partes do Corpo e Lesões",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda a descrever lesões e dores em partes específicas do corpo, como 'sprained ankle' ou 'broken arm'.",
+        exercises: [
+            { type: "fill", question: "Para dizer 'Eu quebrei meu braço', você diz 'I broke my ______.'", answer: "arm" },
+            { type: "fill", question: "O que é 'sprained ankle'?", answer: "tornozelo torcido" },
+            { type: "choice", question: "Qual a tradução para 'stomachache'?", options: ["Dor de cabeça", "Dor de estômago", "Dor de dente"], answer: "Dor de estômago" },
+            { type: "fill", question: "A palavra 'leg' significa...?", answer: "perna" },
+            { type: "fill", question: "Como se diz 'dor nas costas'?", answer: "back pain" }
+        ],
+        vocabulary: [
+            { en: "Arm", pt: "Braço", example: "He broke his arm playing football." },
+            { en: "Leg", pt: "Perna", example: "My leg hurts." },
+            { en: "Back", pt: "Costas", example: "I have back pain." },
+            { en: "Ankle", pt: "Tornozelo", example: "I sprained my ankle." },
+            { en: "Stomach", pt: "Estômago", example: "I have a stomachache." }
+        ]
+    },
+    {
+        day: 27,
+        title: "Receita de Sobremesa em Inglês",
+        category: "Leitura e Compreensão",
+        summary: "Hoje, o foco é na leitura de uma receita de sobremesa simples para praticar vocabulário e verbos de ação.",
+        exercises: [
+            { type: "fill", question: "Para 'bake' um bolo, você precisa de um...?", answer: "oven" },
+            { type: "fill", question: "O que significa 'preheat the oven'?", answer: "pré-aquecer o forno" },
+            { type: "choice", question: "Qual a palavra para 'ovos'?", options: ["Eggs", "Egss", "Ages"], answer: "Eggs" },
+            { type: "fill", question: "A tradução de 'add' é...?", answer: "adicionar" },
+            { type: "fill", question: "O que é 'dessert'?", answer: "sobremesa" }
+        ],
+        vocabulary: [
+            { en: "Dessert", pt: "Sobremesa", example: "This cake is the perfect dessert." },
+            { en: "Bake", pt: "Assar", example: "You need to bake the cake for 30 minutes." },
+            { en: "Oven", pt: "Forno", example: "Preheat the oven to 180 degrees." },
+            { en: "Eggs", pt: "Ovos", example: "You need two eggs for this recipe." },
+            { en: "Mix", pt: "Misturar", example: "Mix all the ingredients well." }
+        ]
+    },
+    {
+        day: 28,
+        title: "Perguntas e Respostas sobre Saúde",
+        category: "Conversação",
+        summary: "Vamos praticar a interação com um paciente, perguntando sobre seus sintomas e respondendo de forma clara.",
+        exercises: [
+            { type: "fill", question: "Como você pergunta 'O que está te incomodando?'?", answer: "What is bothering you" },
+            { type: "fill", question: "Complete: 'I have a sore ______.' (garganta)", answer: "throat" },
+            { type: "choice", question: "Qual a tradução para 'Do you feel better?'", options: ["Você se sente melhor?", "Você se sente doente?", "Você está doente?"], answer: "Você se sente melhor?" },
+            { type: "fill", question: "Complete: 'Take this ______.' (remédio)", answer: "medicine" },
+            { type: "fill", question: "Como se diz 'Eu tenho uma febre leve'?", answer: "I have a slight fever" }
+        ],
+        vocabulary: [
+            { en: "Bothering", pt: "Incomodando", example: "What is bothering you?" },
+            { en: "Sore throat", pt: "Dor de garganta", example: "I have a sore throat." },
+            { en: "Better", pt: "Melhor", example: "I feel much better now." },
+            { en: "Medicine", pt: "Remédio", example: "The doctor prescribed some medicine." },
+            { en: "Slight", pt: "Leve", example: "I have a slight headache." }
+        ]
+    },
+    {
+        day: 29,
+        title: "Expressões de Opinião e Gosto",
+        category: "Fundamentos",
+        summary: "Aprenda a expressar suas opiniões e gostos, tanto para comida quanto para tratamentos de beleza. 'I like...' e 'I think...' são muito úteis.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'Eu gosto de'?", answer: "I like" },
+            { type: "fill", question: "Como se diz 'Eu não gosto de'?", answer: "I don't like" },
+            { type: "choice", question: "Qual a tradução para 'I think it's beautiful'?", options: ["Eu acho que é feio", "Eu acho que é bonito", "Eu penso sobre isso"], answer: "Eu acho que é bonito" },
+            { type: "fill", question: "Complete: 'I believe this treatment is very effective.' O que é 'effective'?", answer: "eficaz" },
+            { type: "fill", question: "Como se diz 'Minha opinião é que...'?", answer: "In my opinion" }
+        ],
+        vocabulary: [
+            { en: "Like", pt: "Gostar", example: "I like this new lipstick." },
+            { en: "Don't like", pt: "Não gostar", example: "I don't like spicy food." },
+            { en: "Think", pt: "Achar / Pensar", example: "I think this is a great idea." },
+            { en: "Believe", pt: "Acreditar", example: "I believe in natural beauty." },
+            { en: "Opinion", pt: "Opinião", example: "What is your opinion about this?" }
+        ]
+    },
+    {
+        day: 30,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Hoje é dia de revisar e consolidar o aprendizado do primeiro mês. Refaça exercícios e use as frases aprendidas para criar novos diálogos.",
+        exercises: [
+            { type: "fill", question: "Como você pergunta 'O que é isso?'", answer: "What is this" },
+            { type: "fill", question: "Complete com o verbo 'to be': 'She ___ a great cook.'", answer: "is" },
+            { type: "choice", question: "Qual a tradução para 'I have a headache and a fever'?", options: ["Eu tenho dor de cabeça e febre", "Eu estou com dor de estômago e tosse", "Eu tenho dor de cabeça e resfriado"], answer: "Eu tenho dor de cabeça e febre" },
+            { type: "fill", question: "O passado de 'see' é...?", answer: "saw" },
+            { type: "fill", question: "Qual a palavra para 'ingredientes' em inglês?", answer: "ingredients" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the vocabulary." },
+            { en: "Practice", pt: "Praticar", example: "Practice makes perfect." },
+            { en: "Progress", pt: "Progresso", example: "You have made great progress." },
+            { en: "Goal", pt: "Meta", example: "My goal is to be fluent." },
+            { en: "Confident", pt: "Confiante", example: "I am confident in my English." }
+        ]
+    },
+    {
+        day: 31,
+        title: "Futuro Simples: Will/Won't",
+        category: "Gramática",
+        summary: "Aprenda a usar 'will' para o futuro e 'won't' para a negação, o que é útil para falar sobre planos e previsões.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I _____ (will) go to the party.'", answer: "will" },
+            { type: "fill", question: "Complete: 'She _____ (not/will) be late.'", answer: "won't" },
+            { type: "choice", question: "Qual a pergunta para 'Eles virão amanhã?'?", options: ["Will they come tomorrow?", "Are they come tomorrow?", "Do they come tomorrow?"], answer: "Will they come tomorrow?" },
+            { type: "fill", question: "A tradução de 'I will help you' é...?", answer: "Eu vou te ajudar" },
+            { type: "fill", question: "Como se diz 'Nós não vamos comer isso'?", answer: "We won't eat this" }
+        ],
+        vocabulary: [
+            { en: "Will", pt: "Vai", example: "I will call you later." },
+            { en: "Won't", pt: "Não vai", example: "She won't be at the meeting." },
+            { en: "Later", pt: "Mais tarde", example: "I will talk to you later." },
+            { en: "Tomorrow", pt: "Amanhã", example: "We will meet tomorrow." },
+            { en: "Future", pt: "Futuro", example: "This is a plan for the future." }
+        ]
+    },
+    {
+        day: 32,
+        title: "Expressões de Tempo",
+        category: "Fundamentos",
+        summary: "Aprenda a usar 'today', 'yesterday', 'tomorrow' e 'last week' para falar sobre o tempo.",
+        exercises: [
+            { type: "fill", question: "O que significa 'last week'?", answer: "semana passada" },
+            { type: "fill", question: "A tradução de 'next month' é...?", answer: "próximo mês" },
+            { type: "choice", question: "Qual a palavra para 'ontem'?", options: ["Today", "Yesterday", "Tomorrow"], answer: "Yesterday" },
+            { type: "fill", question: "Complete: 'I went to the clinic ______.' (ontem)", answer: "yesterday" },
+            { type: "fill", question: "Como se diz 'no próximo ano'?", answer: "next year" }
+        ],
+        vocabulary: [
+            { en: "Today", pt: "Hoje", example: "Today is a beautiful day." },
+            { en: "Yesterday", pt: "Ontem", example: "I had a meeting yesterday." },
+            { en: "Tomorrow", pt: "Amanhã", example: "I will travel tomorrow." },
+            { en: "Last week", pt: "Semana passada", example: "Last week was very busy." },
+            { en: "Next month", pt: "Próximo mês", example: "I will start a new course next month." }
+        ]
+    },
+    {
+        day: 33,
+        title: "Ingredientes de Maquiagem",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Expanda seu vocabulário de beleza aprendendo os nomes de produtos e ingredientes de maquiagem, como 'foundation', 'eyeliner' e 'mascara'.",
+        exercises: [
+            { type: "fill", question: "A tradução de 'eyeshadow' é...?", answer: "sombra" },
+            { type: "fill", question: "Para dar cor ao rosto, você usa '_______'. (blush)", answer: "blush" },
+            { type: "choice", question: "A palavra 'foundation' significa...?", options: ["Corretivo", "Base", "Pó"], answer: "Base" },
+            { type: "fill", question: "A tradução de 'mascara' é...?", answer: "rímel" },
+            { type: "fill", question: "Como se diz 'lápis de olho'?", answer: "eyeliner" }
+        ],
+        vocabulary: [
+            { en: "Foundation", pt: "Base", example: "I use a liquid foundation." },
+            { en: "Blush", pt: "Blush", example: "She applied some pink blush." },
+            { en: "Eyeliner", pt: "Lápis de olho", example: "The eyeliner makes your eyes bigger." },
+            { en: "Mascara", pt: "Rímel", example: "Mascara is for your eyelashes." },
+            { en: "Eyeshadow", pt: "Sombra", example: "She has blue eyeshadow." }
+        ]
+    },
+    {
+        day: 34,
+        title: "Verbos de Culinária Avançados",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda verbos de ação mais complexos para cozinhar, como 'simmer', 'sauté' e 'roast'.",
+        exercises: [
+            { type: "fill", question: "O que significa 'to sauté'?", answer: "saltear" },
+            { type: "fill", question: "Qual verbo para 'assar' carnes ou vegetais?", answer: "roast" },
+            { type: "choice", question: "A tradução para 'to simmer' é...?", options: ["Fritar", "Ferver", "Cozinhar em fogo baixo"], answer: "Cozinhar em fogo baixo" },
+            { type: "fill", question: "A palavra 'to whisk' significa...?", answer: "bater" },
+            { type: "fill", question: "Como se diz 'to peel' em português?", answer: "descascar" }
+        ],
+        vocabulary: [
+            { en: "Sauté", pt: "Saltear", example: "Sauté the onions until golden." },
+            { en: "Roast", pt: "Assar (carnes)", example: "Roast the chicken for one hour." },
+            { en: "Simmer", pt: "Cozinhar em fogo baixo", example: "Simmer the sauce for ten minutes." },
+            { en: "Whisk", pt: "Bater (com batedor)", example: "Whisk the eggs in a bowl." },
+            { en: "Peel", pt: "Descascar", example: "Peel the potatoes before cooking." }
+        ]
+    },
+    {
+        day: 35,
+        title: "Preposições de Lugar: In, On, At",
+        category: "Gramática",
+        summary: "Aprenda a usar 'in' (dentro), 'on' (sobre) e 'at' (em) para descrever a localização de coisas ou pessoas.",
+        exercises: [
+            { type: "fill", question: "Complete: 'The book is ___ the table.'", answer: "on" },
+            { type: "fill", question: "Complete: 'She works ___ a hospital.'", answer: "at" },
+            { type: "choice", question: "Qual a tradução para 'The keys are in the box'?", options: ["As chaves estão no caixa", "As chaves estão na caixa", "As chaves estão na mesa"], answer: "As chaves estão na caixa" },
+            { type: "fill", question: "Complete: 'The client is _____ the waiting room.'", answer: "in" },
+            { type: "fill", question: "Como se diz 'Eu estou em casa'?", answer: "I am at home" }
+        ],
+        vocabulary: [
+            { en: "In", pt: "Dentro de", example: "The ingredients are in the cupboard." },
+            { en: "On", pt: "Sobre", example: "The phone is on the table." },
+            { en: "At", pt: "Em", example: "The meeting is at 10 AM." },
+            { en: "Waiting room", pt: "Sala de espera", example: "The patient is in the waiting room." },
+            { en: "Cupboard", pt: "Armário", example: "The glasses are in the cupboard." }
+        ]
+    },
+    {
+        day: 36,
+        title: "Perguntando e Respondendo sobre Preços",
+        category: "Conversação",
+        summary: "Pratique como perguntar e responder sobre preços de forma educada, algo crucial para interações com clientes.",
+        exercises: [
+            { type: "fill", question: "Como você pergunta 'Quanto custa este tratamento?'", answer: "How much does this treatment cost" },
+            { type: "fill", question: "A resposta 'It costs fifty dollars' significa...?", answer: "Custa 50 dólares" },
+            { type: "choice", question: "Qual a frase correta?", options: ["How many is the massage?", "How much is the massage?", "What is the massage?"], answer: "How much is the massage?" },
+            { type: "fill", question: "Para dizer 'É muito caro', você diz 'It's very ______.'", answer: "expensive" },
+            { type: "fill", question: "Como se diz 'Qual o preço?'", answer: "What is the price" }
+        ],
+        vocabulary: [
+            { en: "Cost", pt: "Custo", example: "The cost of the product is high." },
+            { en: "Price", pt: "Preço", example: "What is the price of the service?" },
+            { en: "Expensive", pt: "Caro", example: "This is an expensive treatment." },
+            { en: "Cheap", pt: "Barato", example: "This product is very cheap." },
+            { en: "Discount", pt: "Desconto", example: "I got a discount on the product." }
+        ]
+    },
+    {
+        day: 37,
+        title: "Corpo e Sintomas (Avançado)",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprofunde seu conhecimento sobre as partes do corpo e aprenda a descrever sintomas mais específicos, como 'nausea' e 'dizziness'.",
+        exercises: [
+            { type: "fill", question: "O que é 'nausea'?", answer: "náusea" },
+            { type: "fill", question: "A tradução para 'dizziness' é...?", answer: "tontura" },
+            { type: "choice", question: "Qual a palavra para 'pulmão'?", options: ["Heart", "Lungs", "Stomach"], answer: "Lungs" },
+            { type: "fill", question: "A tradução de 'head' é...?", answer: "cabeça" },
+            { type: "fill", question: "Como se diz 'dor de dente'?", answer: "toothache" }
+        ],
+        vocabulary: [
+            { en: "Nausea", pt: "Náusea", example: "I have nausea after eating that food." },
+            { en: "Dizziness", pt: "Tontura", example: "She feels dizzy all the time." },
+            { en: "Lungs", pt: "Pulmões", example: "The lungs are important for breathing." },
+            { en: "Toothache", pt: "Dor de dente", example: "I have a terrible toothache." },
+            { en: "Stomach", pt: "Estômago", example: "My stomach hurts." }
+        ]
+    },
+    {
+        day: 38,
+        title: "Perguntas com 'Do' e 'Does'",
+        category: "Gramática",
+        summary: "Aprenda a formar perguntas no presente simples usando 'do' e 'does' para diferentes pronomes.",
+        exercises: [
+            { type: "fill", question: "Complete: '___ you work here?'", answer: "Do" },
+            { type: "fill", question: "Complete: '___ she cook well?'", answer: "Does" },
+            { type: "choice", question: "Qual a pergunta correta?", options: ["Do he like coffee?", "Does he like coffee?", "Does you like coffee?"], answer: "Does he like coffee?" },
+            { type: "fill", question: "A tradução de 'Do you speak Portuguese?' é...?", answer: "Você fala português?" },
+            { type: "fill", question: "Complete: '___ they need help?'", answer: "Do" }
+        ],
+        vocabulary: [
+            { en: "Do", pt: "Auxiliar de pergunta", example: "Do you like to travel?" },
+            { en: "Does", pt: "Auxiliar de pergunta (he/she/it)", example: "Does he play tennis?" },
+            { en: "Work", pt: "Trabalhar", example: "Do you work on weekends?" },
+            { en: "Speak", pt: "Falar", example: "Does she speak English?" },
+            { en: "Need", pt: "Precisar", example: "Do you need any help?" }
+        ]
+    },
+    {
+        day: 39,
+        title: "Conversa em uma Cozinha Profissional",
+        category: "Conversação",
+        summary: "Vamos simular um diálogo em uma cozinha de restaurante, com pedidos, instruções e feedback.",
+        exercises: [
+            { type: "fill", question: "Cozinheiro: 'What do you need?' Ajudante: 'I need a clean ______.' (panela)", answer: "pan" },
+            { type: "fill", question: "Cozinheiro: 'The food is ready to be ____.' (servida)", answer: "served" },
+            { type: "choice", question: "A frase 'This is very spicy' significa...?", options: ["É muito doce", "É muito salgado", "É muito picante"], answer: "É muito picante" },
+            { type: "fill", question: "Complete: 'The dessert is in the ______.' (geladeira)", answer: "fridge" },
+            { type: "fill", question: "Como se diz 'A comida está ótima!'", answer: "The food is great" }
+        ],
+        vocabulary: [
+            { en: "Chef", pt: "Chefe de cozinha", example: "The chef is preparing the main course." },
+            { en: "Order", pt: "Pedido", example: "The order is ready." },
+            { en: "Serve", pt: "Servir", example: "Serve the dish hot." },
+            { en: "Spicy", pt: "Picante", example: "This sauce is too spicy." },
+            { en: "Fridge", pt: "Geladeira", example: "Put the leftovers in the fridge." }
+        ]
+    },
+    {
+        day: 40,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Chegamos a um marco importante! Hoje, vamos revisar e consolidar o aprendizado dos dias 31 ao 40.",
+        exercises: [
+            { type: "fill", question: "O que significa 'last year'?", answer: "ano passado" },
+            { type: "fill", question: "Qual verbo auxiliar usamos para 'she' em perguntas no presente simples?", answer: "Does" },
+            { type: "choice", question: "Qual a tradução para 'I will go to the gym tomorrow'?", options: ["Eu fui à academia ontem", "Eu vou à academia amanhã", "Eu vou para a academia agora"], answer: "Eu vou à academia amanhã" },
+            { type: "fill", question: "Como se diz 'creme facial'?", answer: "face cream" },
+            { type: "fill", question: "O que é 'simmer' em português?", answer: "cozinhar em fogo baixo" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the grammar rules." },
+            { en: "Consolidate", pt: "Consolidar", example: "It is important to consolidate your knowledge." },
+            { en: "Milestone", pt: "Marco", example: "This is a major milestone." },
+            { en: "Knowledge", pt: "Conhecimento", example: "I want to improve my knowledge of English." },
+            { en: "Progress", pt: "Progresso", example: "Keep up the good progress!" }
+        ]
+    },
+    {
+        day: 41,
+        title: "Passado Simples com 'Did' e 'Didn't'",
+        category: "Gramática",
+        summary: "Aprenda a formar perguntas e frases negativas no passado simples usando 'did' e 'didn't'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I ____ not like the food.'", answer: "did" },
+            { type: "fill", question: "Complete: '____ you go to the party?'", answer: "Did" },
+            { type: "choice", question: "Qual a frase negativa correta?", options: ["He didn't went", "He did not went", "He didn't go"], answer: "He didn't go" },
+            { type: "fill", question: "Como se diz 'Eu não estudei ontem'?", answer: "I didn't study yesterday" },
+            { type: "fill", question: "A tradução de 'Did you have fun?' é...?", answer: "Você se divertiu?" }
+        ],
+        vocabulary: [
+            { en: "Did", pt: "Auxiliar do passado", example: "Did you finish the report?" },
+            { en: "Didn't", pt: "Não (passado)", example: "We didn't see the movie." },
+            { en: "Fun", pt: "Diversão", example: "We had fun at the party." },
+            { en: "Study", pt: "Estudar", example: "She studied a lot for the test." },
+            { en: "Finish", pt: "Terminar", example: "Did you finish your work?" }
+        ]
+    },
+    {
+        day: 42,
+        title: "Sentimentos e Emoções",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda a descrever seus sentimentos e emoções, o que é importante para se comunicar em qualquer situação, incluindo em um ambiente de saúde ou beleza.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'nervoso' em inglês?", answer: "nervous" },
+            { type: "fill", question: "A tradução de 'angry' é...?", answer: "bravo" },
+            { type: "choice", question: "O que é 'calm'?", options: ["Calmo", "Ansioso", "Triste"], answer: "Calmo" },
+            { type: "fill", question: "A tradução de 'excited' é...?", answer: "animado" },
+            { type: "fill", question: "Como se diz 'Ela está com medo'?", answer: "She is scared" }
+        ],
+        vocabulary: [
+            { en: "Nervous", pt: "Nervoso", example: "I am nervous about the presentation." },
+            { en: "Angry", pt: "Bravo", example: "He is angry at his friend." },
+            { en: "Calm", pt: "Calmo", example: "The patient needs to stay calm." },
+            { en: "Excited", pt: "Animado", example: "I am excited for the trip." },
+            { en: "Scared", pt: "Com medo", example: "Are you scared of spiders?" }
+        ]
+    },
+    {
+        day: 43,
+        title: "Utensílios de Cozinha Avançados",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprofunde seu conhecimento em utensílios de cozinha, como 'colander', 'grater' e 'blender'.",
+        exercises: [
+            { type: "fill", question: "O que é um 'colander'?", answer: "escorredor" },
+            { type: "fill", question: "Para ralar queijo, você usa um '_______'.", answer: "grater" },
+            { type: "choice", question: "A tradução para 'blender' é...?", options: ["Liquidificador", "Micro-ondas", "Torradeira"], answer: "Liquidificador" },
+            { type: "fill", question: "A tradução de 'whisk' é...?", answer: "batedor" },
+            { type: "fill", question: "Como se diz 'abridor de garrafa'?", answer: "bottle opener" }
+        ],
+        vocabulary: [
+            { en: "Colander", pt: "Escorredor", example: "Use the colander to drain the pasta." },
+            { en: "Grater", pt: "Ralador", example: "Grate the cheese with a grater." },
+            { en: "Blender", pt: "Liquidificador", example: "Make a smoothie in the blender." },
+            { en: "Whisk", pt: "Batedor", example: "Whisk the eggs for the omelette." },
+            { en: "Bottle opener", pt: "Abridor de garrafa", example: "I need a bottle opener for this beer." }
+        ]
+    },
+    {
+        day: 44,
+        title: "Perguntas com 'Whose' e 'Which'",
+        category: "Gramática",
+        summary: "Aprenda a usar 'whose' (de quem) e 'which' (qual) para fazer perguntas específicas sobre posse ou escolha.",
+        exercises: [
+            { type: "fill", question: "____ pencil is this?", answer: "Whose" },
+            { type: "fill", question: "____ car is in the garage?'", answer: "Which" },
+            { type: "choice", question: "Qual a tradução para 'Which book do you want?'", options: ["De quem é este livro?", "Qual livro você quer?", "O que você quer?"], answer: "Qual livro você quer?" },
+            { type: "fill", question: "____ is the best choice?", answer: "Which" },
+            { type: "fill", question: "____ dog is barking?", answer: "Whose" }
+        ],
+        vocabulary: [
+            { en: "Whose", pt: "De quem", example: "Whose turn is it?" },
+            { en: "Which", pt: "Qual", example: "Which color do you prefer?" },
+            { en: "Choice", pt: "Escolha", example: "You have two choices." },
+            { en: "Best", pt: "Melhor", example: "This is the best option." },
+            { en: "Prefer", pt: "Preferir", example: "Which one do you prefer?" }
+        ]
+    },
+    {
+        day: 45,
+        title: "Conversação no Consultório Médico",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo entre um paciente e um recepcionista ou enfermeiro, descrevendo os sintomas e agendando uma consulta.",
+        exercises: [
+            { type: "fill", question: "Recepcionista: 'What seems to be the _______?' (problema)", answer: "problem" },
+            { type: "fill", question: "Paciente: 'I have a high _______.' (temperatura)", answer: "temperature" },
+            { type: "choice", question: "Qual a pergunta correta para 'Você tem febre?'", options: ["Do you have a fever?", "Are you have a fever?", "Have you a fever?"], answer: "Do you have a fever?" },
+            { type: "fill", question: "Complete: 'The doctor is ready to see you now.' A tradução é 'O médico está pronto para te _______.'", answer: "ver agora" },
+            { type: "fill", question: "Como se diz 'Por favor, sente-se'?", answer: "Please, sit down" }
+        ],
+        vocabulary: [
+            { en: "Problem", pt: "Problema", example: "I have a problem with my back." },
+            { en: "Temperature", pt: "Temperatura", example: "My temperature is normal." },
+            { en: "Fever", pt: "Febre", example: "Do you have a fever?" },
+            { en: "Symptom", pt: "Sintoma", example: "What are your symptoms?" },
+            { en: "Ready", pt: "Pronto", example: "The doctor is ready." }
+        ]
+    },
+    {
+        day: 46,
+        title: "Comparativos e Superlativos",
+        category: "Gramática",
+        summary: "Aprenda a comparar coisas usando adjetivos comparativos ('bigger', 'more expensive') e superlativos ('the biggest', 'the most expensive').",
+        exercises: [
+            { type: "fill", question: "Complete com o comparativo: 'This salon is ______ than that one.' (grande)", answer: "bigger" },
+            { type: "fill", question: "Complete com o superlativo: 'This is the _____ cake I've ever made.' (bom)", answer: "best" },
+            { type: "choice", question: "Qual a frase correta?", options: ["He is more tall than me", "He is taller than me", "He is most tall than me"], answer: "He is taller than me" },
+            { type: "fill", question: "Complete: 'This treatment is the ______ effective one.' (mais)", answer: "most" },
+            { type: "fill", question: "Como se diz 'O mais barato'?", answer: "the cheapest" }
+        ],
+        vocabulary: [
+            { en: "Bigger", pt: "Maior", example: "My car is bigger than yours." },
+            { en: "Taller", pt: "Mais alto", example: "He is taller than his brother." },
+            { en: "Most effective", pt: "Mais eficaz", example: "This is the most effective treatment." },
+            { en: "Best", pt: "O melhor", example: "This is the best service." },
+            { en: "Cheapest", pt: "O mais barato", example: "Where can I find the cheapest price?" }
+        ]
+    },
+    {
+        day: 47,
+        title: "Ingredientes para Massagens e Aromaterapia",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Expanda seu vocabulário de estética com termos relacionados a massagens e aromaterapia, como 'essential oil', 'lotion' e 'candle'.",
+        exercises: [
+            { type: "fill", question: "O que é 'essential oil'?", answer: "óleo essencial" },
+            { type: "fill", question: "A tradução de 'lotion' é...?", answer: "loção" },
+            { type: "choice", question: "A palavra 'candle' significa...?", options: ["Sabonete", "Vela", "Toalha"], answer: "Vela" },
+            { type: "fill", question: "Como se diz 'massagem' em inglês?", answer: "massage" },
+            { type: "fill", question: "O que é 'calming'?", answer: "calmante" }
+        ],
+        vocabulary: [
+            { en: "Essential oil", pt: "Óleo essencial", example: "I use lavender essential oil." },
+            { en: "Lotion", pt: "Loção", example: "Apply this body lotion after the shower." },
+            { en: "Massage", pt: "Massagem", example: "She gives a relaxing massage." },
+            { en: "Candle", pt: "Vela", example: "The room is lit by a candle." },
+            { en: "Relaxing", pt: "Relaxante", example: "This is a very relaxing treatment." }
+        ]
+    },
+    {
+        day: 48,
+        title: "Culinária: Métodos de Cozimento",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever diferentes métodos de cozimento, como 'boiling', 'frying' e 'baking'.",
+        exercises: [
+            { type: "fill", question: "O que significa 'to fry'?", answer: "fritar" },
+            { type: "fill", question: "Para cozinhar em água fervente, você usa o método '_______'.", answer: "boiling" },
+            { type: "choice", question: "A tradução para 'to grill' é...?", options: ["Grelhar", "Assar", "Cozinhar"], answer: "Grelhar" },
+            { type: "fill", question: "A palavra para 'assar' pão ou bolo é...?", answer: "baking" },
+            { type: "fill", question: "Como se diz 'to steam' em português?", answer: "cozinhar no vapor" }
+        ],
+        vocabulary: [
+            { en: "Boil", pt: "Ferver", example: "Boil the water before adding the pasta." },
+            { en: "Fry", pt: "Fritar", example: "Fry the potatoes in oil." },
+            { en: "Bake", pt: "Assar", example: "Bake a delicious cake." },
+            { en: "Grill", pt: "Grelhar", example: "Grill the vegetables for a healthy meal." },
+            { en: "Steam", pt: "Cozinhar no vapor", example: "Steam the fish for dinner." }
+        ]
+    },
+    {
+        day: 49,
+        title: "Expressões Idiomáticas (1)",
+        category: "Gramática",
+        summary: "As expressões idiomáticas são difíceis, mas essenciais para a fluência. Vamos aprender algumas simples e comuns, como 'piece of cake'.",
+        exercises: [
+            { type: "fill", question: "O que significa 'a piece of cake'?", answer: "muito fácil" },
+            { type: "fill", question: "A tradução de 'break a leg' é...?", answer: "boa sorte" },
+            { type: "choice", question: "Se algo é 'in the same boat', vocês estão na mesma...?", options: ["Situação", "Festa", "Cidade"], answer: "Situação" },
+            { type: "fill", question: "A tradução de 'once in a blue moon' é...?", answer: "raramente" },
+            { type: "fill", question: "Como se diz 'manter a calma'?", answer: "keep your cool" }
+        ],
+        vocabulary: [
+            { en: "Piece of cake", pt: "Moleza / Muito fácil", example: "This test was a piece of cake." },
+            { en: "Break a leg", pt: "Boa sorte", example: "Break a leg on your presentation!" },
+            { en: "In the same boat", pt: "Na mesma situação", example: "We are all in the same boat." },
+            { en: "Once in a blue moon", pt: "Raramente", example: "He visits his family once in a blue moon." },
+            { en: "Keep your cool", pt: "Manter a calma", example: "Try to keep your cool during the exam." }
+        ]
+    },
+    {
+        day: 50,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Hoje é dia de revisar e consolidar o aprendizado dos dias 41 ao 50. Refaça exercícios e use as frases aprendidas para criar novos diálogos.",
+        exercises: [
+            { type: "fill", question: "O que é 'dizziness'?", answer: "tontura" },
+            { type: "fill", question: "Qual a tradução para 'I didn't like the food'?", answer: "Eu não gostei da comida" },
+            { type: "choice", question: "Qual a frase correta?", options: ["She is more tall than me", "She is most tall than me", "She is taller than me"], answer: "She is taller than me" },
+            { type: "fill", question: "A tradução de 'blender' é...?", answer: "liquidificador" },
+            { type: "fill", question: "Como se diz 'Onde você mora?'", answer: "Where do you live" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the grammar rules." },
+            { en: "Consolidate", pt: "Consolidar", example: "It is important to consolidate your knowledge." },
+            { en: "Milestone", pt: "Marco", example: "This is a major milestone." },
+            { en: "Knowledge", pt: "Conhecimento", example: "I want to improve my knowledge of English." },
+            { en: "Progress", pt: "Progresso", example: "Keep up the good progress!" }
+        ]
+    },
+    {
+        day: 51,
+        title: "Voz Passiva (1)",
+        category: "Gramática",
+        summary: "Aprenda a usar a voz passiva para dar ênfase a uma ação em vez da pessoa que a realizou, como em 'The cake was made by me'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'The letter was ______ by him.' (escrito)", answer: "written" },
+            { type: "fill", question: "A frase 'The food was cooked by a famous chef' significa...?", answer: "A comida foi cozinhada por um chef famoso" },
+            { type: "choice", question: "Qual a tradução para 'This book was written in 1990'?", options: ["Este livro foi escrito em 1990", "Este livro será escrito em 1990", "Este livro foi lido em 1990"], answer: "Este livro foi escrito em 1990" },
+            { type: "fill", question: "Complete: 'The patient was ______ to the hospital.' (levado)", answer: "taken" },
+            { type: "fill", question: "Como se diz 'A casa foi construída'?", answer: "The house was built" }
+        ],
+        vocabulary: [
+            { en: "Was written", pt: "Foi escrito", example: "The book was written by a famous author." },
+            { en: "Was cooked", pt: "Foi cozinhado", example: "The meal was cooked with fresh ingredients." },
+            { en: "Was built", pt: "Foi construído", example: "The building was built in 1950." },
+            { en: "Was taken", pt: "Foi levado", example: "The patient was taken to the operating room." },
+            { en: "By", pt: "Por", example: "The decision was made by me." }
+        ]
+    },
+    {
+        day: 52,
+        title: "Procedimentos e Ferramentas de Estética",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda o nome de procedimentos de estética e das ferramentas usadas, como 'laser treatment', 'facial steamer' e 'tweezers'.",
+        exercises: [
+            { type: "fill", question: "O que é 'laser treatment'?", answer: "tratamento a laser" },
+            { type: "fill", question: "A tradução de 'facial steamer' é...?", answer: "vaporizador facial" },
+            { type: "choice", question: "A palavra 'tweezers' significa...?", options: ["Tesoura", "Pinça", "Escova"], answer: "Pinça" },
+            { type: "fill", question: "O que é 'peeling'?", answer: "peeling" },
+            { type: "fill", question: "Como se diz 'esfoliante'?", answer: "exfoliator" }
+        ],
+        vocabulary: [
+            { en: "Laser treatment", pt: "Tratamento a laser", example: "She is getting a laser treatment." },
+            { en: "Facial steamer", pt: "Vaporizador facial", example: "The facial steamer is used to open pores." },
+            { en: "Tweezers", pt: "Pinça", example: "I use tweezers to shape my eyebrows." },
+            { en: "Peeling", pt: "Peeling", example: "A chemical peeling improves skin texture." },
+            { en: "Exfoliator", pt: "Esfoliante", example: "Use an exfoliator twice a week." }
+        ]
+    },
+    {
+        day: 53,
+        title: "Culinária: Tipos de Carne e Peixe",
+        category: "Vocabulário (Culinária)",
+        summary: "Expanda seu vocabulário culinário com os nomes de diferentes tipos de carne e peixe, como 'chicken', 'beef' e 'salmon'.",
+        exercises: [
+            { type: "fill", question: "O que é 'chicken'?", answer: "frango" },
+            { type: "fill", question: "A tradução de 'beef' é...?", answer: "carne de boi" },
+            { type: "choice", question: "A palavra 'salmon' significa...?", options: ["Salmão", "Atum", "Truta"], answer: "Salmão" },
+            { type: "fill", question: "O que é 'pork'?", answer: "carne de porco" },
+            { type: "fill", question: "Como se diz 'camarão'?", answer: "shrimp" }
+        ],
+        vocabulary: [
+            { en: "Chicken", pt: "Frango", example: "I am cooking a chicken for dinner." },
+            { en: "Beef", pt: "Carne de boi", example: "Do you prefer beef or fish?" },
+            { en: "Salmon", pt: "Salmão", example: "Salmon is a healthy fish." },
+            { en: "Pork", pt: "Carne de porco", example: "Pork is a popular meat." },
+            { en: "Shrimp", pt: "Camarão", example: "I love shrimp pasta." }
+        ]
+    },
+    {
+        day: 54,
+        title: "Adjetivos com Preposições",
+        category: "Gramática",
+        summary: "Alguns adjetivos são seguidos por preposições específicas. Vamos aprender a usar 'afraid of', 'interested in' e 'good at'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'She is interested _____ cooking.'", answer: "in" },
+            { type: "fill", question: "Complete: 'I am afraid _____ spiders.'", answer: "of" },
+            { type: "choice", question: "Qual a frase correta?", options: ["I am good in math", "I am good at math", "I am good for math"], answer: "I am good at math" },
+            { type: "fill", question: "Como se diz 'Eu estou animado com isso'?", answer: "I am excited about this" },
+            { type: "fill", question: "A tradução de 'bored with' é...?", answer: "entediado com" }
+        ],
+        vocabulary: [
+            { en: "Interested in", pt: "Interessado em", example: "She is interested in learning English." },
+            { en: "Afraid of", pt: "Com medo de", example: "He is afraid of the dark." },
+            { en: "Good at", pt: "Bom em", example: "She is good at playing tennis." },
+            { en: "Excited about", pt: "Animado com", example: "I am excited about the new movie." },
+            { en: "Bored with", pt: "Entediado com", example: "I am bored with this game." }
+        ]
+    },
+    {
+        day: 55,
+        title: "Conversa com Fornecedores",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo com um fornecedor, pedindo informações sobre produtos e preços para o seu negócio.",
+        exercises: [
+            { type: "fill", question: "Como você pergunta 'Você pode me enviar a lista de preços?'", answer: "Can you send me the price list" },
+            { type: "fill", question: "Complete: 'I need to place an ____.' (pedido)", answer: "order" },
+            { type: "choice", question: "A frase 'We are out of stock' significa...?", options: ["Estamos sem estoque", "Temos muito estoque", "O estoque está no chão"], answer: "Estamos sem estoque" },
+            { type: "fill", question: "Complete: 'What is the minimum ______ quantity?' (pedido)", answer: "order" },
+            { type: "fill", question: "Como se diz 'Eu gostaria de saber mais sobre isso'?", answer: "I would like to know more about it" }
+        ],
+        vocabulary: [
+            { en: "Supplier", pt: "Fornecedor", example: "We get our products from this supplier." },
+            { en: "Price list", pt: "Lista de preços", example: "Can I have your price list?" },
+            { en: "Order", pt: "Pedido", example: "I need to place a new order." },
+            { en: "Out of stock", pt: "Sem estoque", example: "The product is out of stock." },
+            { en: "Minimum quantity", pt: "Quantidade mínima", example: "What is the minimum order quantity?" }
+        ]
+    },
+    {
+        day: 56,
+        title: "Verbos Modais: Should/Shouldn't",
+        category: "Gramática",
+        summary: "Aprenda a usar 'should' para dar conselhos e 'shouldn't' para o que não deve ser feito.",
+        exercises: [
+            { type: "fill", question: "Complete: 'You _____ see a doctor.'", answer: "should" },
+            { type: "fill", question: "Complete: 'You _____ eat so much sugar.'", answer: "shouldn't" },
+            { type: "choice", question: "Qual a tradução para 'She should rest'?", options: ["Ela deve descansar", "Ela não deve descansar", "Ela pode descansar"], answer: "Ela deve descansar" },
+            { type: "fill", question: "Como se diz 'Você não deveria fumar'?", answer: "You shouldn't smoke" },
+            { type: "fill", question: "A tradução de 'should I call him?' é...?", answer: "Eu deveria ligar para ele?" }
+        ],
+        vocabulary: [
+            { en: "Should", pt: "Deveria", example: "You should drink more water." },
+            { en: "Shouldn't", pt: "Não deveria", example: "You shouldn't go outside without a jacket." },
+            { en: "Rest", pt: "Descansar", example: "You should rest after the treatment." },
+            { en: "Smoke", pt: "Fumar", example: "Smoking is bad for your health." },
+            { en: "Call", pt: "Ligar", example: "I should call my mother." }
+        ]
+    },
+    {
+        day: 57,
+        title: "Frases de Segurança e Higiene",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda frases e termos para falar sobre segurança e higiene no ambiente de trabalho, o que é crucial em qualquer área da saúde.",
+        exercises: [
+            { type: "fill", question: "Para dizer 'Lave as mãos', você diz '_______ your hands.'", answer: "Wash" },
+            { type: "fill", question: "O que é 'clean'?", answer: "limpo" },
+            { type: "choice", question: "A palavra 'sanitize' significa...?", options: ["Lavar", "Sanitizar", "Secar"], answer: "Sanitizar" },
+            { type: "fill", question: "O que é 'disinfect'?", answer: "desinfetar" },
+            { type: "fill", question: "Como se diz 'área estéril'?", answer: "sterile area" }
+        ],
+        vocabulary: [
+            { en: "Wash", pt: "Lavar", example: "Wash your hands with soap." },
+            { en: "Clean", pt: "Limpo", example: "The room must be clean." },
+            { en: "Sanitize", pt: "Sanitizar", example: "Sanitize your hands after touching anything." },
+            { en: "Disinfect", pt: "Desinfetar", example: "Disinfect the tools before use." },
+            { en: "Sterile", pt: "Estéril", example: "This is a sterile instrument." }
+        ]
+    },
+    {
+        day: 58,
+        title: "Culinária: Vegetais e Frutas",
+        category: "Vocabulário (Culinária)",
+        summary: "Expanda seu vocabulário de comida com os nomes de vegetais e frutas comuns.",
+        exercises: [
+            { type: "fill", question: "O que é 'apple'?", answer: "maçã" },
+            { type: "fill", question: "A tradução de 'banana' é...?", answer: "banana" },
+            { type: "choice", question: "A palavra 'grape' significa...?", options: ["Morango", "Uva", "Melancia"], answer: "Uva" },
+            { type: "fill", question: "O que é 'carrot'?", answer: "cenoura" },
+            { type: "fill", question: "Como se diz 'batata'?", answer: "potato" }
+        ],
+        vocabulary: [
+            { en: "Apple", pt: "Maçã", example: "An apple a day keeps the doctor away." },
+            { en: "Banana", pt: "Banana", example: "I eat a banana for breakfast." },
+            { en: "Grape", pt: "Uva", example: "Grapes are my favorite fruit." },
+            { en: "Carrot", pt: "Cenoura", example: "Carrots are good for your eyes." },
+            { en: "Potato", pt: "Batata", example: "I love roasted potatoes." }
+        ]
+    },
+    {
+        day: 59,
+        title: "Frases Condicionais (Tipo 1)",
+        category: "Gramática",
+        summary: "Aprenda a usar a estrutura 'If... will...' para falar sobre condições e resultados futuros prováveis.",
+        exercises: [
+            { type: "fill", question: "Complete: 'If you study, you _____ pass the test.'", answer: "will" },
+            { type: "fill", question: "A tradução de 'If it rains, I won't go out' é...?", answer: "Se chover, eu não vou sair" },
+            { type: "choice", question: "Qual a frase correta?", options: ["If you will call me, I will answer", "If you call me, I will answer", "If you calling me, I will answer"], answer: "If you call me, I will answer" },
+            { type: "fill", question: "Complete: 'If you rest, you _____ feel better.'", answer: "will" },
+            { type: "fill", question: "Como se diz 'Se você precisar de ajuda, eu te ajudo'?", answer: "If you need help, I will help you" }
+        ],
+        vocabulary: [
+            { en: "If", pt: "Se", example: "If you are tired, you should rest." },
+            { en: "Will", pt: "Vai", example: "I will go to the party if I finish my work." },
+            { en: "Feel better", pt: "Se sentir melhor", example: "You will feel better if you take this medicine." },
+            { en: "Help", pt: "Ajuda", example: "I will help you if you ask." },
+            { en: "Need", pt: "Precisar", example: "If you need anything, just call me." }
+        ]
+    },
+    {
+        day: 60,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Metade do caminho! Hoje é dia de revisar e consolidar o aprendizado dos dias 51 ao 60.",
+        exercises: [
+            { type: "fill", question: "A tradução de 'The coffee was made by her' é...?", answer: "O café foi feito por ela" },
+            { type: "fill", question: "O que é 'tweezers'?", answer: "pinça" },
+            { type: "choice", question: "Qual a palavra para 'frango'?", options: ["Pork", "Chicken", "Beef"], answer: "Chicken" },
+            { type: "fill", question: "Como se diz 'Eu deveria ir?'", answer: "Should I go" },
+            { type: "fill", question: "Complete a frase condicional: 'If it snows, I _____ stay at home.'", answer: "will" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the grammar rules." },
+            { en: "Consolidate", pt: "Consolidar", example: "It is important to consolidate your knowledge." },
+            { en: "Milestone", pt: "Marco", example: "This is a major milestone." },
+            { en: "Knowledge", pt: "Conhecimento", example: "I want to improve my knowledge of English." },
+            { en: "Progress", pt: "Progresso", example: "Keep up the good progress!" }
+        ]
+    },
+    {
+        day: 61,
+        title: "Present Perfect Continuous",
+        category: "Gramática",
+        summary: "Aprenda a usar 'have/has been + verbo com -ing' para falar de ações que começaram no passado e continuam até agora, como 'She has been cooking for hours'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I have been ______ for two hours.' (estudando)", answer: "studying" },
+            { type: "fill", question: "A tradução de 'She has been working here since 2010' é 'Ela está trabalhando aqui desde _______.'", answer: "2010" },
+            { type: "choice", question: "Qual a frase correta?", options: ["He has been sleep", "He has been sleeping", "He have been sleeping"], answer: "He has been sleeping" },
+            { type: "fill", question: "Complete: 'We have been ______ to the radio.' (escutando)", answer: "listening" },
+            { type: "fill", question: "Como se diz 'Ele está cozinhando há muito tempo'?", answer: "He has been cooking for a long time" }
+        ],
+        vocabulary: [
+            { en: "Have been studying", pt: "Estive estudando", example: "I have been studying all day." },
+            { en: "Have been working", pt: "Estive trabalhando", example: "She has been working a lot lately." },
+            { en: "For", pt: "Há", example: "I have been waiting for you for an hour." },
+            { en: "Since", pt: "Desde", example: "We have been friends since childhood." },
+            { en: "Listening", pt: "Escutando", example: "I have been listening to music." }
+        ]
+    },
+    {
+        day: 62,
+        title: "Tópicos de Saúde Avançados",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprofunde seu vocabulário de saúde com termos para hospitais, diagnósticos e tratamentos.",
+        exercises: [
+            { type: "fill", question: "O que é 'diagnosis'?", answer: "diagnóstico" },
+            { type: "fill", question: "A tradução de 'treatment' é...?", answer: "tratamento" },
+            { type: "choice", question: "A palavra 'prescription' significa...?", options: ["Receita médica", "Instrução", "Agendamento"], answer: "Receita médica" },
+            { type: "fill", question: "O que é 'symptom'?", answer: "sintoma" },
+            { type: "fill", question: "Como se diz 'cirurgia'?", answer: "surgery" }
+        ],
+        vocabulary: [
+            { en: "Diagnosis", pt: "Diagnóstico", example: "The doctor gave me a diagnosis." },
+            { en: "Treatment", pt: "Tratamento", example: "The treatment will start tomorrow." },
+            { en: "Prescription", pt: "Receita médica", example: "I need to get my prescription filled." },
+            { en: "Symptom", pt: "Sintoma", example: "What are your main symptoms?" },
+            { en: "Surgery", pt: "Cirurgia", example: "She had a successful surgery." }
+        ]
+    },
+    {
+        day: 63,
+        title: "Ingredientes para Massas e Molhos",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever ingredientes e pratos de massas, como 'pasta', 'sauce' e 'cheese'.",
+        exercises: [
+            { type: "fill", question: "O que é 'pasta'?", answer: "massa" },
+            { type: "fill", question: "A tradução de 'sauce' é...?", answer: "molho" },
+            { type: "choice", question: "A palavra 'cheese' significa...?", options: ["Queijo", "Pão", "Carne"], answer: "Queijo" },
+            { type: "fill", question: "Para fazer molho de tomate, você precisa de...?", answer: "tomatoes" },
+            { type: "fill", question: "Como se diz 'manteiga'?", answer: "butter" }
+        ],
+        vocabulary: [
+            { en: "Pasta", pt: "Massa", example: "I love pasta with tomato sauce." },
+            { en: "Sauce", pt: "Molho", example: "The pasta sauce is very tasty." },
+            { en: "Cheese", pt: "Queijo", example: "Add some cheese on top." },
+            { en: "Tomatoes", pt: "Tomates", example: "The sauce is made with fresh tomatoes." },
+            { en: "Butter", pt: "Manteiga", example: "Melt the butter in a pan." }
+        ]
+    },
+    {
+        day: 64,
+        title: "Verbos Modais: May/Might",
+        category: "Gramática",
+        summary: "Aprenda a usar 'may' e 'might' para expressar possibilidade ou permissão.",
+        exercises: [
+            { type: "fill", question: "Complete: 'It ____ rain tomorrow.'", answer: "might" },
+            { type: "fill", question: "Complete: '____ I come in?'", answer: "May" },
+            { type: "choice", question: "Qual a tradução para 'She might be a doctor'?", options: ["Ela deve ser uma médica", "Ela pode ser uma médica", "Ela era uma médica"], answer: "Ela pode ser uma médica" },
+            { type: "fill", question: "Como se diz 'Talvez eu vá ao cinema'?", answer: "I might go to the cinema" },
+            { type: "fill", question: "A tradução de 'May I ask a question?' é...?", answer: "Posso fazer uma pergunta?" }
+        ],
+        vocabulary: [
+            { en: "May", pt: "Poder (permissão)", example: "May I help you?" },
+            { en: "Might", pt: "Pode (possibilidade)", example: "He might be late." },
+            { en: "Come in", pt: "Entrar", example: "May I come in?" },
+            { en: "Late", pt: "Atrasado", example: "He might be late for the appointment." },
+            { en: "Ask", pt: "Perguntar", example: "I have a question to ask." }
+        ]
+    },
+    {
+        day: 65,
+        title: "Conversação em uma Estética",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo em uma clínica de estética, descrevendo o serviço desejado e fazendo perguntas sobre o tratamento.",
+        exercises: [
+            { type: "fill", question: "Cliente: 'I would like to have a ______.' (tratamento facial)", answer: "facial" },
+            { type: "fill", question: "Esteticista: 'What kind of ______ do you have?' (tipo de pele)", answer: "skin" },
+            { type: "choice", question: "A frase 'How long does the treatment take?' significa...?", options: ["Onde é o tratamento?", "Quanto tempo dura o tratamento?", "Qual é o tratamento?"], answer: "Quanto tempo dura o tratamento?" },
+            { type: "fill", question: "Complete: 'Is this a ______ treatment?' (doloroso)", answer: "painful" },
+            { type: "fill", question: "Como se diz 'Eu gostaria de agendar uma consulta'?", answer: "I would like to schedule an appointment" }
+        ],
+        vocabulary: [
+            { en: "Facial", pt: "Tratamento facial", example: "She is getting a facial today." },
+            { en: "Skin type", pt: "Tipo de pele", example: "What is your skin type?" },
+            { en: "Treatment", pt: "Tratamento", example: "This treatment is for acne." },
+            { en: "Painful", pt: "Doloroso", example: "Is this treatment painful?" },
+            { en: "Schedule", pt: "Agendar", example: "Can I schedule an appointment for next week?" }
+        ]
+    },
+    {
+        day: 66,
+        title: "Expressões de Sentimentos (Avançado)",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda a expressar sentimentos mais complexos, como 'relieved', 'disappointed' e 'overwhelmed'.",
+        exercises: [
+            { type: "fill", question: "O que é 'relieved'?", answer: "aliviado" },
+            { type: "fill", question: "A tradução de 'disappointed' é...?", answer: "decepcionado" },
+            { type: "choice", question: "A palavra 'overwhelmed' significa...?", options: ["Submerso / Oprimido", "Animado", "Nervoso"], answer: "Submerso / Oprimido" },
+            { type: "fill", question: "A tradução de 'frustrated' é...?", answer: "frustrado" },
+            { type: "fill", question: "Como se diz 'Estou exausto'?", answer: "I am exhausted" }
+        ],
+        vocabulary: [
+            { en: "Relieved", pt: "Aliviado", example: "I am so relieved the surgery went well." },
+            { en: "Disappointed", pt: "Decepcionado", example: "He was disappointed with the results." },
+            { en: "Overwhelmed", pt: "Oprimido", example: "I feel overwhelmed with all this work." },
+            { en: "Frustrated", pt: "Frustrado", example: "She is frustrated with the lack of progress." },
+            { en: "Exhausted", pt: "Exausto", example: "I am exhausted after a long day." }
+        ]
+    },
+    {
+        day: 67,
+        title: "Culinária: Termos para Sobremesas e Bolos",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprofunde seu vocabulário de culinária com termos para sobremesas e bolos, como 'frosting', 'icing' e 'batter'.",
+        exercises: [
+            { type: "fill", question: "O que é 'batter'?", answer: "massa (crua)" },
+            { type: "fill", question: "A tradução de 'frosting' é...?", answer: "cobertura" },
+            { type: "choice", question: "A palavra 'icing' significa...?", options: ["Biscoitos", "Cobertura (mais fina)", "Chocolate"], answer: "Cobertura (mais fina)" },
+            { type: "fill", question: "O que é 'dough'?", answer: "massa (de pão)" },
+            { type: "fill", question: "Como se diz 'receita'?", answer: "recipe" }
+        ],
+        vocabulary: [
+            { en: "Batter", pt: "Massa (de bolo/panqueca)", example: "Pour the batter into the pan." },
+            { en: "Frosting", pt: "Cobertura (de bolo)", example: "The cake has a chocolate frosting." },
+            { en: "Icing", pt: "Cobertura (fina)", example: "The doughnuts have a sugar icing." },
+            { en: "Dough", pt: "Massa (de pão)", example: "Let the dough rise for an hour." },
+            { en: "Recipe", pt: "Receita", example: "I found a new recipe for cookies." }
+        ]
+    },
+    {
+        day: 68,
+        title: "Preposições de Movimento",
+        category: "Gramática",
+        summary: "Aprenda a usar preposições como 'to', 'from', 'into' e 'out of' para descrever movimento.",
+        exercises: [
+            { type: "fill", question: "Complete: 'She walked _____ the store.'", answer: "into" },
+            { type: "fill", question: "Complete: 'I am going _____ the hospital.'", answer: "to" },
+            { type: "choice", question: "A tradução para 'He came out of the room' é...?", options: ["Ele entrou no quarto", "Ele saiu do quarto", "Ele estava no quarto"], answer: "Ele saiu do quarto" },
+            { type: "fill", question: "Complete: 'The client came _____ Brazil.'", answer: "from" },
+            { type: "fill", question: "Como se diz 'Eu vou para casa'?", answer: "I am going home" }
+        ],
+        vocabulary: [
+            { en: "Into", pt: "Para dentro de", example: "He walked into the clinic." },
+            { en: "Out of", pt: "Para fora de", example: "She came out of the room." },
+            { en: "To", pt: "Para", example: "I am going to the supermarket." },
+            { en: "From", pt: "De", example: "He is from Argentina." },
+            { en: "Walked", pt: "Caminhou", example: "She walked to the park." }
+        ]
+    },
+    {
+        day: 69,
+        title: "Frases para Relatórios e Anotações",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprenda frases e termos para fazer anotações e relatórios sobre pacientes e clientes.",
+        exercises: [
+            { type: "fill", question: "O que é 'patient history'?", answer: "histórico do paciente" },
+            { type: "fill", question: "A tradução de 'observation' é...?", answer: "observação" },
+            { type: "choice", question: "A palavra 'recommendation' significa...?", options: ["Recomendação", "Receita", "Agendamento"], answer: "Recomendação" },
+            { type: "fill", question: "O que é 'follow-up'?", answer: "acompanhamento" },
+            { type: "fill", question: "Como se diz 'condição do paciente'?", answer: "patient's condition" }
+        ],
+        vocabulary: [
+            { en: "Patient history", pt: "Histórico do paciente", example: "I need to review the patient history." },
+            { en: "Observation", pt: "Observação", example: "Make a note of your observations." },
+            { en: "Recommendation", pt: "Recomendação", example: "The doctor's recommendation is to rest." },
+            { en: "Follow-up", pt: "Acompanhamento", example: "The patient needs a follow-up appointment." },
+            { en: "Condition", pt: "Condição", example: "The patient's condition is stable." }
+        ]
+    },
+    {
+        day: 70,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Hoje é dia de revisar e consolidar o aprendizado dos dias 61 ao 70. Refaça exercícios e use as frases aprendidas para criar novos diálogos.",
+        exercises: [
+            { type: "fill", question: "A tradução de 'I have been studying' é...?", answer: "Eu estive estudando" },
+            { type: "fill", question: "O que é 'exfoliator'?", answer: "esfoliante" },
+            { type: "choice", question: "Qual a palavra para 'cobertura de bolo'?", options: ["Batter", "Dough", "Frosting"], answer: "Frosting" },
+            { type: "fill", question: "Como se diz 'posso entrar?'?", answer: "May I come in" },
+            { type: "fill", question: "O que é 'follow-up'?", answer: "acompanhamento" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the grammar rules." },
+            { en: "Consolidate", pt: "Consolidar", example: "It is important to consolidate your knowledge." },
+            { en: "Milestone", pt: "Marco", example: "This is a major milestone." },
+            { en: "Knowledge", pt: "Conhecimento", example: "I want to improve my knowledge of English." },
+            { en: "Progress", pt: "Progresso", example: "Keep up the good progress!" }
+        ]
+    },
+    {
+        day: 71,
+        title: "Futuro: Going To",
+        category: "Gramática",
+        summary: "Aprenda a usar 'going to' para falar sobre planos e intenções no futuro, como 'I am going to cook dinner'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I am going to _____ a new recipe.' (experimentar)", answer: "try" },
+            { type: "fill", question: "A tradução de 'She is going to have a facial tomorrow' é...?", answer: "Ela vai fazer um tratamento facial amanhã" },
+            { type: "choice", question: "Qual a frase correta?", options: ["He is go to study", "He is going to study", "He go to study"], answer: "He is going to study" },
+            { type: "fill", question: "Complete: 'We are not going to _____ late.' (chegar)", answer: "arrive" },
+            { type: "fill", question: "Como se diz 'Eles vão viajar'?", answer: "They are going to travel" }
+        ],
+        vocabulary: [
+            { en: "Going to", pt: "Vai / Indo para", example: "I am going to visit my family." },
+            { en: "Try", pt: "Experimentar", example: "I am going to try a new dish." },
+            { en: "Arrive", pt: "Chegar", example: "She is going to arrive late." },
+            { en: "Travel", pt: "Viajar", example: "We are going to travel to Spain." },
+            { en: "Visit", pt: "Visitar", example: "He is going to visit the hospital." }
+        ]
+    },
+    {
+        day: 72,
+        title: "Ingredientes Naturais em Cosméticos",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Expanda seu vocabulário de beleza com os nomes de ingredientes naturais, como 'aloe vera', 'coconut oil' e 'shea butter'.",
+        exercises: [
+            { type: "fill", question: "O que é 'coconut oil'?", answer: "óleo de coco" },
+            { type: "fill", question: "A tradução de 'shea butter' é...?", answer: "manteiga de karité" },
+            { type: "choice", question: "A palavra 'honey' significa...?", options: ["Mel", "Leite", "Chocolate"], answer: "Mel" },
+            { type: "fill", question: "O que é 'tea tree oil'?", answer: "óleo de melaleuca" },
+            { type: "fill", question: "Como se diz 'extrato de camomila'?", answer: "chamomile extract" }
+        ],
+        vocabulary: [
+            { en: "Coconut oil", pt: "Óleo de coco", example: "Coconut oil is great for dry hair." },
+            { en: "Shea butter", pt: "Manteiga de karité", example: "Shea butter is very moisturizing." },
+            { en: "Honey", pt: "Mel", example: "Honey is a natural moisturizer." },
+            { en: "Tea tree oil", pt: "Óleo de melaleuca", example: "Tea tree oil is good for acne." },
+            { en: "Chamomile", pt: "Camomila", example: "Chamomile extract is soothing." }
+        ]
+    },
+    {
+        day: 73,
+        title: "Culinária: Ervas e Especiarias",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever ervas e especiarias comuns, como 'basil', 'oregano' e 'cinnamon'.",
+        exercises: [
+            { type: "fill", question: "O que é 'basil'?", answer: "manjericão" },
+            { type: "fill", question: "A tradução de 'oregano' é...?", answer: "orégano" },
+            { type: "choice", question: "A palavra 'cinnamon' significa...?", options: ["Pimenta", "Canela", "Gengibre"], answer: "Canela" },
+            { type: "fill", question: "O que é 'parsley'?", answer: "salsa" },
+            { type: "fill", question: "Como se diz 'alecrim'?", answer: "rosemary" }
+        ],
+        vocabulary: [
+            { en: "Basil", pt: "Manjericão", example: "Add fresh basil to the pasta." },
+            { en: "Oregano", pt: "Orégano", example: "Oregano is a popular spice." },
+            { en: "Cinnamon", pt: "Canela", example: "Cinnamon is used in many desserts." },
+            { en: "Parsley", pt: "Salsa", example: "Chop the parsley and add it to the soup." },
+            { en: "Rosemary", pt: "Alecrim", example: "Rosemary is a great herb for meat." }
+        ]
+    },
+    {
+        day: 74,
+        title: "Verbos Modais: Must/Have to",
+        category: "Gramática",
+        summary: "Aprenda a usar 'must' e 'have to' para expressar obrigação ou necessidade.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I _____ to leave now.'", answer: "have" },
+            { type: "fill", question: "A tradução de 'You must listen to me' é...?", answer: "Você deve me ouvir" },
+            { type: "choice", question: "Qual a frase correta para 'Ela tem que trabalhar hoje'?", options: ["She must working today", "She have to work today", "She has to work today"], answer: "She has to work today" },
+            { type: "fill", question: "Complete: 'We _____ follow the rules.'", answer: "must" },
+            { type: "fill", question: "Como se diz 'Você não precisa ir'?", answer: "You don't have to go" }
+        ],
+        vocabulary: [
+            { en: "Must", pt: "Deve", example: "You must be very careful." },
+            { en: "Have to", pt: "Ter que", example: "I have to study for the test." },
+            { en: "Follow", pt: "Seguir", example: "You must follow the instructions." },
+            { en: "Rules", pt: "Regras", example: "The rules are very clear." },
+            { en: "Careful", pt: "Cuidadoso", example: "Be careful with the hot pan." }
+        ]
+    },
+    {
+        day: 75,
+        title: "Conversa com o Médico",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo mais completo com um médico, descrevendo sintomas, respondendo a perguntas e entendendo o diagnóstico.",
+        exercises: [
+            { type: "fill", question: "Médico: 'How long have you had this ______?' (sintoma)", answer: "symptom" },
+            { type: "fill", question: "Paciente: 'I have a sore throat and a bad ______.' (tosse)", answer: "cough" },
+            { type: "choice", question: "A frase 'The doctor says you need to rest' significa...?", options: ["O médico diz que você precisa de remédio", "O médico diz que você precisa descansar", "O médico diz que você está doente"], answer: "O médico diz que você precisa descansar" },
+            { type: "fill", question: "Complete: 'Do you have any _______?' (alergias)", answer: "allergies" },
+            { type: "fill", question: "Como se diz 'Estou com dor de estômago'?", answer: "I have a stomachache" }
+        ],
+        vocabulary: [
+            { en: "Symptom", pt: "Sintoma", example: "What symptom are you experiencing?" },
+            { en: "Cough", pt: "Tosse", example: "The cough is getting worse." },
+            { en: "Allergies", pt: "Alergias", example: "Do you have any allergies to medicine?" },
+            { en: "Diagnosis", pt: "Diagnóstico", example: "The diagnosis is a common cold." },
+            { en: "Rest", pt: "Descansar", example: "You need to rest for a few days." }
+        ]
+    },
+    {
+        day: 76,
+        title: "Passado Simples e Passado Contínuo",
+        category: "Gramática",
+        summary: "Aprenda a diferenciar o passado simples ('I ate') do passado contínuo ('I was eating') para descrever eventos passados.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I _____ (eat) when you called.'", answer: "was eating" },
+            { type: "fill", question: "Complete: 'She _____ (go) to the cinema yesterday.'", answer: "went" },
+            { type: "choice", question: "Qual a frase correta?", options: ["He was sleeping when the phone rang", "He sleeping when the phone rang", "He was sleep when the phone rang"], answer: "He was sleeping when the phone rang" },
+            { type: "fill", question: "A tradução de 'I was cooking when she arrived' é...?", answer: "Eu estava cozinhando quando ela chegou" },
+            { type: "fill", question: "Como se diz 'Eles estavam assistindo TV'?", answer: "They were watching TV" }
+        ],
+        vocabulary: [
+            { en: "Was eating", pt: "Estava comendo", example: "I was eating when the doorbell rang." },
+            { en: "Was sleeping", pt: "Estava dormindo", example: "He was sleeping when I called." },
+            { en: "When", pt: "Quando", example: "I was cooking when you arrived." },
+            { en: "Arrived", pt: "Chegou", example: "She arrived at the party late." },
+            { en: "Called", pt: "Ligou", example: "He called me this morning." }
+        ]
+    },
+    {
+        day: 77,
+        title: "Termos de Salão de Beleza (Avançado)",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprofunde seu vocabulário de salão de beleza com termos para cores de cabelo, cortes e tratamentos.",
+        exercises: [
+            { type: "fill", question: "Para dizer 'corte de cabelo', você diz '_______'.", answer: "haircut" },
+            { type: "fill", question: "A tradução de 'highlights' é...?", answer: "luzes" },
+            { type: "choice", question: "A palavra 'balayage' é um tipo de...?", options: ["Penteado", "Técnica de coloração", "Hidratação"], answer: "Técnica de coloração" },
+            { type: "fill", question: "O que é 'blowout'?", answer: "escova" },
+            { type: "fill", question: "Como se diz 'shampoo'?", answer: "shampoo" }
+        ],
+        vocabulary: [
+            { en: "Haircut", pt: "Corte de cabelo", example: "I need a haircut." },
+            { en: "Highlights", pt: "Luzes", example: "I want to get highlights." },
+            { en: "Balayage", pt: "Balayage", example: "Balayage is a very natural look." },
+            { en: "Blowout", pt: "Escova", example: "I am getting a blowout today." },
+            { en: "Shampoo", pt: "Shampoo", example: "What kind of shampoo do you use?" }
+        ]
+    },
+    {
+        day: 78,
+        title: "Culinária: Termos para Bebidas e Sobremesas",
+        category: "Vocabulário (Culinária)",
+        summary: "Expanda seu vocabulário de culinária com termos para bebidas e sobremesas, como 'smoothie', 'latte' e 'pie'.",
+        exercises: [
+            { type: "fill", question: "O que é 'smoothie'?", answer: "smoothie" },
+            { type: "fill", question: "A tradução de 'latte' é...?", answer: "café com leite" },
+            { type: "choice", question: "A palavra 'pie' significa...?", options: ["Torta", "Bolo", "Pudim"], answer: "Torta" },
+            { type: "fill", question: "O que é 'cupcake'?", answer: "bolinho" },
+            { type: "fill", question: "Como se diz 'milkshake'?", answer: "milkshake" }
+        ],
+        vocabulary: [
+            { en: "Smoothie", pt: "Smoothie", example: "I make a fruit smoothie every morning." },
+            { en: "Latte", pt: "Café com leite", example: "I would like a latte, please." },
+            { en: "Pie", pt: "Torta", example: "This apple pie is delicious." },
+            { en: "Cupcake", pt: "Bolinho", example: "She decorated the cupcakes." },
+            { en: "Milkshake", pt: "Milkshake", example: "I am having a chocolate milkshake." }
+        ]
+    },
+    {
+        day: 79,
+        title: "Expressões Idiomáticas (2)",
+        category: "Gramática",
+        summary: "Aprenda mais expressões idiomáticas, como 'hit the books', 'call it a day' e 'get a taste of your own medicine'.",
+        exercises: [
+            { type: "fill", question: "O que significa 'hit the books'?", answer: "estudar muito" },
+            { type: "fill", question: "A tradução de 'call it a day' é...?", answer: "dar por encerrado" },
+            { type: "choice", question: "Se alguém 'gets a taste of their own medicine', essa pessoa...?", options: ["Toma um remédio", "Sofre o mesmo que causou a outro", "Tem um sabor amargo"], answer: "Sofre o mesmo que causou a outro" },
+            { type: "fill", question: "A tradução de 'feel under the weather' é...?", answer: "se sentir indisposto" },
+            { type: "fill", question: "Como se diz 'uma vez na vida'?", answer: "once in a lifetime" }
+        ],
+        vocabulary: [
+            { en: "Hit the books", pt: "Estudar muito", example: "I need to hit the books for my exam." },
+            { en: "Call it a day", pt: "Dar por encerrado", example: "Let's call it a day and go home." },
+            { en: "Feel under the weather", pt: "Sentir-se indisposto", example: "I am feeling a bit under the weather." },
+            { en: "Once in a lifetime", pt: "Uma vez na vida", example: "This is a once in a lifetime opportunity." },
+            { en: "Get a taste of your own medicine", pt: "Pagar na mesma moeda", example: "He got a taste of his own medicine." }
+        ]
+    },
+    {
+        day: 80,
+        title: "Revisão e Avaliação",
+        category: "Revisão",
+        summary: "Hoje é dia de revisar e consolidar o aprendizado dos dias 71 ao 80. Refaça exercícios e use as frases aprendidas para criar novos diálogos.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'manteiga de karité'?", answer: "shea butter" },
+            { type: "fill", question: "Qual verbo auxiliar usamos para o futuro com 'going to' para a terceira pessoa?", answer: "is" },
+            { type: "choice", question: "Qual a palavra para 'salsa'?", options: ["Basil", "Parsley", "Rosemary"], answer: "Parsley" },
+            { type: "fill", question: "Como se diz 'Você tem que me ajudar'?", answer: "You have to help me" },
+            { type: "fill", question: "O que é 'balayage'?", answer: "balayage" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review the grammar rules." },
+            { en: "Consolidate", pt: "Consolidar", example: "It is important to consolidate your knowledge." },
+            { en: "Milestone", pt: "Marco", example: "This is a major milestone." },
+            { en: "Knowledge", pt: "Conhecimento", example: "I want to improve my knowledge of English." },
+            { en: "Progress", pt: "Progresso", example: "Keep up the good progress!" }
+        ]
+    },
+    {
+        day: 81,
+        title: "Voz Passiva (2)",
+        category: "Gramática",
+        summary: "Aprofunde seu conhecimento da voz passiva em diferentes tempos verbais, como presente e futuro.",
+        exercises: [
+            { type: "fill", question: "Complete com a voz passiva: 'The salon _____ (clean) every day.'", answer: "is cleaned" },
+            { type: "fill", question: "A tradução de 'The report will be sent tomorrow' é...?", answer: "O relatório será enviado amanhã" },
+            { type: "choice", question: "Qual a frase correta?", options: ["The patient is treated", "The patient is treat", "The patient was treat"], answer: "The patient is treated" },
+            { type: "fill", question: "Complete com a voz passiva: 'The food _____ (prepare) now.'", answer: "is being prepared" },
+            { type: "fill", question: "Como se diz 'O carro será consertado'?", answer: "The car will be repaired" }
+        ],
+        vocabulary: [
+            { en: "Is cleaned", pt: "É limpo", example: "The room is cleaned every morning." },
+            { en: "Will be sent", pt: "Será enviado", example: "The email will be sent later." },
+            { en: "Is being prepared", pt: "Está sendo preparado", example: "The food is being prepared now." },
+            { en: "Repaired", pt: "Consertado", example: "The phone was repaired by a technician." },
+            { en: "Treated", pt: "Tratado", example: "The patient is being treated." }
+        ]
+    },
+    {
+        day: 82,
+        title: "Frases para Vendas e Serviços",
+        category: "Conversação",
+        summary: "Vamos praticar um diálogo de vendas, descrevendo os benefícios de um produto ou serviço e respondendo a perguntas do cliente.",
+        exercises: [
+            { type: "fill", question: "Como você pergunta 'Você está interessado em algum de nossos produtos?'?", answer: "Are you interested in any of our products" },
+            { type: "fill", question: "A tradução de 'This treatment will improve your skin' é...?", answer: "Este tratamento irá melhorar a sua pele" },
+            { type: "choice", question: "A frase 'This product is very effective' significa...?", options: ["Este produto é muito caro", "Este produto é muito eficaz", "Este produto é muito bom"], answer: "Este produto é muito eficaz" },
+            { type: "fill", question: "Complete: 'We have a special ______ today.' (oferta)", answer: "offer" },
+            { type: "fill", question: "Como se diz 'Qual o benefício?'", answer: "What is the benefit" }
+        ],
+        vocabulary: [
+            { en: "Interested", pt: "Interessado", example: "Are you interested in a new treatment?" },
+            { en: "Improve", pt: "Melhorar", example: "This cream will improve your skin." },
+            { en: "Effective", pt: "Eficaz", example: "The treatment is very effective." },
+            { en: "Offer", pt: "Oferta", example: "We have a special offer for new clients." },
+            { en: "Benefit", pt: "Benefício", example: "What is the main benefit of this product?" }
+        ]
+    },
+    {
+        day: 83,
+        title: "Culinária: Termos para Pães e Massas",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever pães e massas, como 'bread', 'bagel' e 'croissant'.",
+        exercises: [
+            { type: "fill", question: "O que é 'bread'?", answer: "pão" },
+            { type: "fill", question: "A tradução de 'bagel' é...?", answer: "bagel" },
+            { type: "choice", question: "A palavra 'croissant' é...?", options: ["Pão", "Biscoito", "Croissant"], answer: "Croissant" },
+            { type: "fill", question: "O que é 'sandwich'?", answer: "sanduíche" },
+            { type: "fill", question: "Como se diz 'torrada'?", answer: "toast" }
+        ],
+        vocabulary: [
+            { en: "Bread", pt: "Pão", example: "I eat bread with butter for breakfast." },
+            { en: "Bagel", pt: "Bagel", example: "A bagel is a type of bread." },
+            { en: "Croissant", pt: "Croissant", example: "I love a croissant with coffee." },
+            { en: "Sandwich", pt: "Sanduíche", example: "I am making a chicken sandwich." },
+            { en: "Toast", pt: "Torrada", example: "I like my toast with jam." }
+        ]
+    },
+    {
+        day: 84,
+        title: "Verbos Modais: Could/Would",
+        category: "Gramática",
+        summary: "Aprenda a usar 'could' (podia) para habilidade no passado e 'would' (faria) para situações hipotéticas.",
+        exercises: [
+            { type: "fill", question: "Complete: 'When I was young, I _____ (can) play the piano.'", answer: "could" },
+            { type: "fill", question: "A tradução de 'I would go if I had time' é...?", answer: "Eu iria se eu tivesse tempo" },
+            { type: "choice", question: "Qual a frase correta para 'Você poderia me ajudar?'", options: ["You would help me?", "Could you help me?", "You could helping me?"], answer: "Could you help me?" },
+            { type: "fill", question: "Complete: 'He said he _____ travel to Brazil.'", answer: "would" },
+            { type: "fill", question: "Como se diz 'Eu não poderia fazer isso'?", answer: "I couldn't do that" }
+        ],
+        vocabulary: [
+            { en: "Could", pt: "Poderia / Podia", example: "I could swim very well when I was a child." },
+            { en: "Would", pt: "Faria", example: "I would like to have a coffee." },
+            { en: "Swim", pt: "Nadar", example: "I could swim faster." },
+            { en: "Travel", pt: "Viajar", example: "She would love to travel the world." },
+            { en: "Help", pt: "Ajudar", example: "Would you help me with this?" }
+        ]
+    },
+    {
+        day: 85,
+        title: "Conversação em Cenário de Emergência",
+        category: "Conversação",
+        summary: "Aprenda frases essenciais para lidar com situações de emergência, o que pode ser crucial na área da saúde.",
+        exercises: [
+            { type: "fill", question: "Como você diz 'Ligue para a ambulância'?", answer: "Call an ambulance" },
+            { type: "fill", question: "A tradução de 'He is unconscious' é...?", answer: "Ele está inconsciente" },
+            { type: "choice", question: "A frase 'He is having trouble breathing' significa...?", options: ["Ele está com dor de cabeça", "Ele está com dificuldade para respirar", "Ele está com dor no peito"], answer: "Ele está com dificuldade para respirar" },
+            { type: "fill", question: "Complete: 'Is there a doctor in the ______?' (casa)", answer: "house" },
+            { type: "fill", question: "Como se diz 'Acalme-se'?", answer: "Calm down" }
+        ],
+        vocabulary: [
+            { en: "Ambulance", pt: "Ambulância", example: "Call an ambulance immediately." },
+            { en: "Unconscious", pt: "Inconsciente", example: "The patient is unconscious." },
+            { en: "Breathing", pt: "Respiração", example: "He is having trouble breathing." },
+            { en: "Doctor", pt: "Médico", example: "Is there a doctor here?" },
+            { en: "Emergency", pt: "Emergência", example: "This is an emergency." }
+        ]
+    },
+    {
+        day: 86,
+        title: "Expressões de Opinião e Gosto (Avançado)",
+        category: "Conversação",
+        summary: "Aprenda a expressar opiniões de forma mais formal e profissional, usando frases como 'In my opinion' e 'I believe that'.",
+        exercises: [
+            { type: "fill", question: "Complete: 'I believe that this is the best ______.' (opção)", answer: "option" },
+            { type: "fill", question: "A tradução de 'I disagree with you' é...?", answer: "Eu discordo de você" },
+            { type: "choice", question: "A frase 'I think we should reconsider' significa...?", options: ["Eu acho que deveríamos considerar", "Eu acho que deveríamos reconsiderar", "Eu acho que não deveríamos considerar"], answer: "Eu acho que deveríamos reconsiderar" },
+            { type: "fill", question: "Como se diz 'Qual é a sua opinião sobre isso?'?", answer: "What is your opinion on this" },
+            { type: "fill", question: "Complete: 'From my point of ____, it's a good idea.'", answer: "view" }
+        ],
+        vocabulary: [
+            { en: "I believe that", pt: "Eu acredito que", example: "I believe that this treatment is beneficial." },
+            { en: "I disagree", pt: "Eu discordo", example: "I disagree with his point of view." },
+            { en: "Reconsider", pt: "Reconsiderar", example: "Let's reconsider the decision." },
+            { en: "In my opinion", pt: "Na minha opinião", example: "In my opinion, this is the best solution." },
+            { en: "Point of view", pt: "Ponto de vista", example: "From my point of view, it's a difficult case." }
+        ]
+    },
+    {
+        day: 87,
+        title: "Termos para SPA e Wellness",
+        category: "Vocabulário (Saúde/Beleza)",
+        summary: "Aprofunde seu vocabulário de estética com termos para tratamentos em SPA e bem-estar, como 'sauna', 'steam room' e 'hydrotherapy'.",
+        exercises: [
+            { type: "fill", question: "O que é 'sauna'?", answer: "sauna" },
+            { type: "fill", question: "A tradução de 'steam room' é...?", answer: "sala de vapor" },
+            { type: "choice", question: "A palavra 'wellness' significa...?", options: ["Doença", "Bem-estar", "Cura"], answer: "Bem-estar" },
+            { type: "fill", question: "O que é 'hydrotherapy'?", answer: "hidroterapia" },
+            { type: "fill", question: "Como se diz 'tratamento de beleza'?", answer: "beauty treatment" }
+        ],
+        vocabulary: [
+            { en: "Sauna", pt: "Sauna", example: "I feel relaxed after the sauna." },
+            { en: "Steam room", pt: "Sala de vapor", example: "The steam room is very hot." },
+            { en: "Wellness", pt: "Bem-estar", example: "Wellness is a growing industry." },
+            { en: "Hydrotherapy", pt: "Hidroterapia", example: "Hydrotherapy is great for muscle pain." },
+            { en: "Beauty treatment", pt: "Tratamento de beleza", example: "She booked a beauty treatment." }
+        ]
+    },
+    {
+        day: 88,
+        title: "Culinária: Pratos Típicos e Ingredientes",
+        category: "Vocabulário (Culinária)",
+        summary: "Aprenda a descrever pratos típicos de diferentes culturas, como 'tacos', 'sushi' e 'pizza', e seus ingredientes.",
+        exercises: [
+            { type: "fill", question: "O que é 'taco'?", answer: "taco" },
+            { type: "fill", question: "A tradução de 'sushi' é...?", answer: "sushi" },
+            { type: "choice", question: "A palavra 'pasta' significa...?", options: ["Massa", "Torta", "Pizza"], answer: "Massa" },
+            { type: "fill", question: "O que é 'curry'?", answer: "curry" },
+            { type: "fill", question: "Como se diz 'arroz'?", answer: "rice" }
+        ],
+        vocabulary: [
+            { en: "Taco", pt: "Taco", example: "I am having tacos for lunch." },
+            { en: "Sushi", pt: "Sushi", example: "Sushi is a Japanese dish." },
+            { en: "Pizza", pt: "Pizza", example: "I love pepperoni pizza." },
+            { en: "Curry", pt: "Curry", example: "Indian food has a lot of curry." },
+            { en: "Rice", pt: "Arroz", example: "Rice is a staple food in many countries." }
+        ]
+    },
+    {
+        day: 89,
+        title: "Revisão Geral e Prática de Conversação",
+        category: "Revisão",
+        summary: "Hoje, o foco é em uma revisão geral e prática de conversação. Use todos os termos e estruturas que você aprendeu.",
+        exercises: [
+            { type: "fill", question: "Como se diz 'A sala foi limpa por ele'?", answer: "The room was cleaned by him" },
+            { type: "fill", question: "O que é 'hydrotherapy'?", answer: "hidroterapia" },
+            { type: "choice", question: "Qual a palavra para 'sérum'?", options: ["Lotion", "Serum", "Toner"], answer: "Serum" },
+            { type: "fill", question: "Como se diz 'Eu vou te ajudar a cozinhar'?", answer: "I am going to help you cook" },
+            { type: "fill", question: "O que é 'once in a lifetime'?", answer: "uma vez na vida" }
+        ],
+        vocabulary: [
+            { en: "Review", pt: "Revisar", example: "Let's review everything we have learned." },
+            { en: "Practice", pt: "Praticar", example: "Practice is essential for fluency." },
+            { en: "Conversation", pt: "Conversação", example: "Let's have a conversation in English." },
+            { en: "Fluency", pt: "Fluência", example: "My goal is to achieve fluency." },
+            { en: "Confidence", pt: "Confiança", example: "Speaking English gives me confidence." }
+        ]
+    },
+    {
+        day: 90,
+        title: "Revisão Final e Próximos Passos",
+        category: "Revisão",
+        summary: "Parabéns! Você concluiu a jornada de 90 dias. Use este dia para uma revisão final e para planejar seus próximos passos. A fluência é uma jornada contínua.",
+        exercises: [
+            { type: "fill", question: "Qual a tradução para 'She is having trouble breathing'?", answer: "Ela está com dificuldade para respirar" },
+            { type: "fill", question: "O que significa 'In my opinion'?", answer: "Na minha opinião" },
+            { type: "choice", question: "Qual verbo usamos para falar de um evento que aconteceu no passado e continua até agora?", options: ["Have been + verb", "Have + verb", "Is + verb"], answer: "Have been + verb" },
+            { type: "fill", question: "O que é 'symptom'?", answer: "sintoma" },
+            { type: "fill", question: "A tradução de 'He is going to travel' é...?", answer: "Ele vai viajar" }
+        ],
+        vocabulary: [
+            { en: "Congratulations", pt: "Parabéns", example: "Congratulations on completing the program!" },
+            { en: "Milestone", pt: "Marco", example: "You have reached a major milestone." },
+            { en: "Journey", pt: "Jornada", example: "This learning journey was a success." },
+            { en: "Next steps", pt: "Próximos passos", example: "What are your next steps?" },
+            { en: "Fluency", pt: "Fluência", example: "You are now on your way to fluency." }
+        ]
+    }
+];
+
+function populateFullPlan() {
+    return dailyContent;
+}
+
+const full90DayPlan = populateFullPlan();
+let currentDay = 1;
+
+document.addEventListener('DOMContentLoaded', () => {
+    const daysNav = document.getElementById('days-nav');
+    const contentArea = document.getElementById('content-area');
+    const mainTitle = document.getElementById('main-title');
+    const mainSubtitle = document.getElementById('main-subtitle');
+    const progressContainer = document.getElementById('progress-container');
+    const quizModal = document.getElementById('quiz-modal');
+    const closeQuizBtn = document.getElementById('close-quiz-btn');
+    const checkQuizBtn = document.getElementById('check-quiz-btn');
+
+    function loadDay(dayNumber) {
+        currentDay = dayNumber;
+        const dayData = full90DayPlan.find(d => d.day === dayNumber);
+        if (!dayData) return;
+        
+        mainTitle.textContent = `Dia ${dayData.day}: ${dayData.title}`;
+        mainSubtitle.textContent = dayData.summary;
+
+        updateProgressBar(dayNumber);
+        updateActiveNav(dayNumber);
+
+        let exercisesHTML = dayData.exercises.map((ex, index) => {
+            if (ex.type === 'fill') {
+                return `<div class="mb-4 exercise-item" data-type="fill" data-answer="${ex.answer}">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">${index + 1}. ${ex.question}</label>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                            <p class="text-sm mt-1 answer-feedback" style="display: none;"></p>
+                        </div>`;
+            } else if (ex.type === 'choice') {
+                const optionsHTML = ex.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                return `<div class="mb-4 exercise-item" data-type="choice" data-answer="${ex.answer}">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">${index + 1}. ${ex.question}</label>
+                            <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                                <option value="">Selecione uma opção</option>
+                                ${optionsHTML}
+                            </select>
+                            <p class="text-sm mt-1 answer-feedback" style="display: none;"></p>
+                        </div>`;
+            }
+        }).join('');
+
+        let vocabularyHTML = dayData.vocabulary.map(voc => {
+            return `<div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg cursor-pointer" onclick="this.querySelector('p').classList.toggle('hidden')">
+                        <p class="font-semibold text-amber-800">${voc.en}</p>
+                        <p class="text-amber-700 mt-1 hidden"><strong>PT:</strong> ${voc.pt}<br><em>Ex: ${voc.example}</em></p>
+                    </div>`;
+        }).join('');
+
+        contentArea.innerHTML = `
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200/80">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Exercícios do Dia</h3>
+                <div id="exercises-container">${exercisesHTML}</div>
+                <div class="mt-8 flex gap-4">
+                    <button id="check-answers-btn" class="px-6 py-2 rounded-lg btn-primary">Verificar Respostas</button>
+                    <button id="generate-quiz-btn" class="px-6 py-2 rounded-lg btn-secondary">Gerar Quiz Surpresa</button>
+                </div>
+            </div>
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200/80 mt-8">
+                <h3 class="text-xl font-bold text-gray-800 mb-6">Vocabulário Específico</h3>
+                <div class="space-y-4">${vocabularyHTML}</div>
+            </div>
+        `;
+
+        document.getElementById('check-answers-btn').addEventListener('click', checkAnswers);
+        document.getElementById('generate-quiz-btn').addEventListener('click', generateQuiz);
+    }
+    
+    function updateProgressBar(day) {
+        const percentage = Math.round((day / 90) * 100);
+        progressContainer.innerHTML = `
+            <div class="w-48">
+                <p class="text-sm font-semibold text-orange-600 text-right">${percentage}% Completo</p>
+                <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                    <div class="bg-orange-500 h-2.5 rounded-full" style="width: ${percentage}%"></div>
+                </div>
+            </div>`;
+    }
+
+    function checkAnswers() {
+        const exercises = document.querySelectorAll('.exercise-item');
+        exercises.forEach(ex => {
+            const type = ex.dataset.type;
+            const correctAnswer = ex.dataset.answer.toLowerCase();
+            const feedbackEl = ex.querySelector('.answer-feedback');
+            let userAnswer;
+            
+            ex.classList.remove('incorrect-answer');
+
+            if (type === 'fill') {
+                userAnswer = ex.querySelector('input').value.toLowerCase().trim();
+            } else if (type === 'choice') {
+                userAnswer = ex.querySelector('select').value.toLowerCase().trim();
+            }
+
+            if (userAnswer === correctAnswer) {
+                feedbackEl.innerHTML = `Correto! <span class="feedback-icon">✓</span>`;
+                feedbackEl.className = 'text-sm mt-1 answer-feedback correct-answer';
+            } else {
+                feedbackEl.innerHTML = `Incorreto. A resposta certa é: <strong class="correct-answer">${ex.dataset.answer}</strong> <span class="feedback-icon">✗</span>`;
+                feedbackEl.className = 'text-sm mt-1 answer-feedback';
+                ex.classList.add('incorrect-answer');
+            }
+            feedbackEl.style.display = 'block';
+        });
+    }
+
+    function generateQuiz() {
+        const quizContent = document.getElementById('quiz-content');
+        const lessonsSoFar = full90DayPlan.filter(d => d.day <= currentDay);
+        let allExercises = [];
+        lessonsSoFar.forEach(day => {
+            allExercises = allExercises.concat(day.exercises);
+        });
+
+        let randomExercises = allExercises.sort(() => 0.5 - Math.random()).slice(0, 5);
+        
+        let quizHTML = randomExercises.map((ex, index) => {
+             if (ex.type === 'fill') {
+                return `<div class="mb-4 exercise-item" data-type="fill" data-answer="${ex.answer}">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">${index + 1}. ${ex.question}</label>
+                            <input type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                            <p class="text-sm mt-1 answer-feedback" style="display: none;"></p>
+                        </div>`;
+            } else if (ex.type === 'choice') {
+                const optionsHTML = ex.options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                return `<div class="mb-4 exercise-item" data-type="choice" data-answer="${ex.answer}">
+                            <label class="block text-gray-700 text-sm font-medium mb-2">${index + 1}. ${ex.question}</label>
+                            <select class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-orange-500 focus:ring-orange-500 sm:text-sm p-2">
+                                <option value="">Selecione uma opção</option>
+                                ${optionsHTML}
+                            </select>
+                            <p class="text-sm mt-1 answer-feedback" style="display: none;"></p>
+                        </div>`;
+            }
+        }).join('');
+
+        quizContent.innerHTML = quizHTML;
+        quizModal.classList.remove('hidden');
+    }
+    
+    closeQuizBtn.addEventListener('click', () => quizModal.classList.add('hidden'));
+    checkQuizBtn.addEventListener('click', () => {
+        const quizExercises = quizModal.querySelectorAll('.exercise-item');
+        quizExercises.forEach(ex => {
+             const type = ex.dataset.type;
+            const correctAnswer = ex.dataset.answer.toLowerCase();
+            const feedbackEl = ex.querySelector('.answer-feedback');
+            let userAnswer;
+            
+            ex.classList.remove('incorrect-answer');
+
+            if (type === 'fill') {
+                userAnswer = ex.querySelector('input').value.toLowerCase().trim();
+            } else if (type === 'choice') {
+                userAnswer = ex.querySelector('select').value.toLowerCase().trim();
+            }
+
+            if (userAnswer === correctAnswer) {
+                feedbackEl.innerHTML = `Correto! <span class="feedback-icon">✓</span>`;
+                feedbackEl.className = 'text-sm mt-1 answer-feedback correct-answer';
+            } else {
+                feedbackEl.innerHTML = `Incorreto. A resposta certa é: <strong class="correct-answer">${ex.dataset.answer}</strong> <span class="feedback-icon">✗</span>`;
+                feedbackEl.className = 'text-sm mt-1 answer-feedback';
+                ex.classList.add('incorrect-answer');
+            }
+            feedbackEl.style.display = 'block';
+        });
+    });
+
+    function renderNav() {
+        let navHTML = '';
+        for (let i = 1; i <= 90; i++) {
+            const dayData = full90DayPlan.find(d => d.day === i);
+            navHTML += `<a href="#" class="nav-link block px-4 py-2.5" data-day="${i}">Dia ${i}: ${dayData.title.split(' (')[0]}</a>`;
+        }
+        daysNav.innerHTML = navHTML;
+        daysNav.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const day = parseInt(e.target.dataset.day);
+                loadDay(day);
+            });
+        });
+    }
+
+    function updateActiveNav(day) {
+        daysNav.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (parseInt(link.dataset.day) === day) {
+                link.classList.add('active');
+            }
+        });
+    }
+
+    function renderMainChart() {
+        const ctx = document.getElementById('progressChart').getContext('2d');
+        const categoryCounts = full90DayPlan.reduce((acc, day) => {
+            acc[day.category] = (acc[day.category] || 0) + 1;
+            return acc;
+        }, {});
+
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(categoryCounts),
+                datasets: [{
+                    label: 'Lições por Categoria',
+                    data: Object.values(categoryCounts),
+                    backgroundColor: [
+                        'rgba(251, 146, 60, 0.8)',
+                        'rgba(253, 186, 116, 0.8)',
+                        'rgba(249, 115, 22, 0.8)',
+                        'rgba(234, 88, 12, 0.8)',
+                        'rgba(124, 58, 237, 0.8)',
+                         'rgba(192, 132, 252, 0.8)'
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                family: "'Poppins', sans-serif",
+                            },
+                            color: '#4a4a4a'
+                        }
+                    },
+                    tooltip: {
+                        titleFont: { family: "'Poppins', sans-serif" },
+                        bodyFont: { family: "'Poppins', sans-serif" },
+                    }
+                },
+                cutout: '60%'
+            }
+        });
+    }
+
+    renderNav();
+    renderMainChart();
+});
+</script>
+
+</body>
+</html>
